@@ -1,0 +1,3596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MAD-II Week 4</title>
+  <meta name="description" content="MAD-II Week 4: Vue. Declarative rendering, ViewModel, components and how reactivity works.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <style>
+/* ==========================================================
+   Study Hub - shared stylesheet
+   Cartoon + light pixel theme
+   (MAD-II base styles first, then "Study hub additions" at the end)
+   ========================================================== */
+
+/* ---------- Tokens ---------- */
+:root {
+  --ink: #2b2d42;
+  --paper: #fffaf0;
+  --sky: #e8f6ff;
+  --sky-2: #8ecae6;
+  --butter: #ffe66d;
+  --peach: #ffc8b8;
+  --lilac: #d9c7f0;
+  --mint: #b9f0d5;
+  --coral: #ff7b7b;
+  --pink: #ffb3d1;
+
+  /* theme tokens (light values = the original look) */
+  --edge: #2b2d42;          /* outlines and borders */
+  --edge-shadow: #2b2d42;   /* hard drop shadows */
+  --on-ink: #fff;           /* text drawn on an --ink fill */
+  --surface: #fff;          /* cards and chips */
+  --surface-2: #fff9ec;     /* soft panels */
+  --grid: rgba(142, 202, 230, 0.30);
+  --rule: rgba(43, 45, 66, 0.35);
+  --shade: rgba(43, 45, 66, 0.16);
+  --muted: rgba(43, 45, 66, 0.75);
+  --hl: #fff3b0;
+  --chip-res: #efe6fb;
+  --tricky: #ffe9e0;
+  --title-glow: rgba(255, 255, 255, 0.85);
+  --coral-hover: #ff9a9a;
+  --heavy-bg: #fff7a8;
+  --heavy-head: #ffd23f;
+
+  --font-pixel: "Press Start 2P", "Courier New", monospace;
+  --font-body: "Fredoka", "Baloo 2", "Comic Sans MS", "Trebuchet MS", system-ui, sans-serif;
+  --font-code: "VT323", "Courier New", monospace;
+}
+
+/* ---------- Base ---------- */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 90px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1.1rem;
+  line-height: 1.55;
+  background-color: var(--sky);
+  background-image: linear-gradient(var(--grid) 2px, transparent 2px),
+    linear-gradient(90deg, var(--grid) 2px, transparent 2px);
+  background-size: 32px 32px;
+}
+
+a { color: inherit; text-decoration-thickness: 3px; text-underline-offset: 3px; text-decoration-color: var(--coral); }
+a:hover { background: var(--butter); }
+a:focus-visible,
+abbr:focus-visible { outline: 4px solid var(--coral); outline-offset: 3px; }
+
+abbr[title] {
+  text-decoration: underline dotted 2px;
+  text-underline-offset: 4px;
+  cursor: help;
+}
+
+mark {
+  color: inherit;
+  padding: 0 3px;
+  background: linear-gradient(transparent 52%, var(--butter) 52%);
+  font-weight: 600;
+}
+
+code {
+  font-family: var(--font-code);
+  font-size: 1.3em;
+  line-height: 1;
+  padding: 0 6px;
+  background: var(--hl);
+  border: 2px solid var(--edge);
+  border-radius: 6px;
+}
+
+.sprites { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* ---------- Scroll progress (CSS only, where supported) ---------- */
+.progress {
+  display: none;
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 6px;
+  background: var(--coral);
+  transform-origin: left center;
+  transform: scaleX(0);
+  z-index: 100;
+}
+@supports (animation-timeline: scroll()) {
+  .progress { display: block; animation: fill linear both; animation-timeline: scroll(root); }
+}
+@keyframes fill { to { transform: scaleX(1); } }
+
+/* ---------- Drifting pixel clouds ---------- */
+.sky { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.cloud { position: absolute; left: 0; shape-rendering: crispEdges; animation: drift linear infinite; }
+.c1 { top: 14%; width: 180px; height: 45px;   animation-duration: 95s;  animation-delay: -20s; }
+.c2 { top: 38%; width: 120px; height: 30px;   animation-duration: 120s; animation-delay: -70s; }
+.c3 { top: 62%; width: 220px; height: 55px;   animation-duration: 140s; animation-delay: -40s; }
+.c4 { top: 84%; width: 150px; height: 37.5px; animation-duration: 110s; animation-delay: -90s; }
+@keyframes drift {
+  from { translate: -300px 0; }
+  to   { translate: calc(100vw + 100px) 0; }
+}
+
+/* ---------- Pixel buttons (notched corners) ---------- */
+.hud nav a,
+.btn,
+.world-links a {
+  display: inline-block;
+  font-family: var(--font-pixel);
+  font-size: 0.62rem;
+  line-height: 1;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--surface);
+  padding: 10px 12px;
+  margin: 4px;
+  white-space: nowrap;
+  box-shadow: 0 -4px 0 0 var(--edge),
+    0 4px 0 0 var(--edge),
+    -4px 0 0 0 var(--edge),
+    4px 0 0 0 var(--edge);
+  transition: translate 0.12s, background 0.12s;
+}
+.hud nav a:hover,
+.btn:hover,
+.world-links a:hover { background: var(--butter); translate: 0 -3px; }
+.btn:active,
+.hud nav a:active,
+.world-links a:active { translate: 0 2px; }
+
+.btn.go {
+  font-size: 0.9rem;
+  padding: 16px 22px;
+  background: var(--coral);
+  box-shadow: 0 -4px 0 0 var(--edge),
+    0 4px 0 0 var(--edge),
+    -4px 0 0 0 var(--edge),
+    4px 0 0 0 var(--edge),
+    inset 0 -6px 0 0 var(--shade);
+}
+.btn.go:hover { background: var(--coral-hover); }
+
+/* ---------- Top bar ---------- */
+.hud {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--paper);
+  border-bottom: 4px solid var(--edge);
+}
+.hud-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-pixel);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.brand:hover { background: none; }
+.brand abbr { text-decoration: none; cursor: pointer; }
+.brand-star { width: 20px; height: 20px; shape-rendering: crispEdges; }
+.hud nav {
+  display: flex;
+  margin-left: auto;
+  overflow-x: auto;
+  padding: 8px 8px;
+}
+
+/* ---------- Hero ---------- */
+.hero {
+  position: relative;
+  z-index: 1;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 70px 20px 30px;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 30px;
+  align-items: center;
+}
+
+.title {
+  margin: 0 0 34px;
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  font-size: clamp(1.35rem, 5.4vw, 2.75rem);
+  line-height: 1.55;
+}
+.title span {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  color: var(--c, #fff);
+  --o: 3px;
+  text-shadow: var(--o) 0 var(--edge-shadow),
+    calc(var(--o) * -1) 0 var(--edge-shadow),
+    0 var(--o) var(--edge-shadow),
+    0 calc(var(--o) * -1) var(--edge-shadow),
+    var(--o) var(--o) var(--edge-shadow),
+    calc(var(--o) * -1) calc(var(--o) * -1) var(--edge-shadow),
+    var(--o) calc(var(--o) * -1) var(--edge-shadow),
+    calc(var(--o) * -1) var(--o) var(--edge-shadow),
+    7px 7px 0 var(--edge-shadow);
+  animation: bob 3.2s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.55s);
+}
+@keyframes bob {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -7px; }
+}
+
+.world-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 6px;
+  list-style: none;
+  margin: 26px 0 0;
+  padding: 0;
+}
+.world-links li:nth-child(1) a { background: var(--butter); }
+.world-links li:nth-child(2) a { background: var(--sky-2); }
+.world-links li:nth-child(3) a { background: var(--lilac); }
+.world-links li:nth-child(4) a { background: var(--mint); }
+.world-links a:hover { background: var(--surface); }
+
+.mascot {
+  position: relative;
+  justify-self: center;
+  width: min(300px, 70vw);
+  padding-top: 84px;
+}
+.robot {
+  display: block;
+  width: 100%;
+  height: auto;
+  animation: bob 2.6s ease-in-out infinite;
+}
+.mascot::after {
+  content: "";
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  bottom: -18px;
+  height: 12px;
+  background: var(--shade);
+}
+.bubble {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  translate: -42% 0;
+  margin: 0;
+  padding: 8px 18px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--surface);
+  border: 4px solid var(--edge);
+  border-radius: 20px;
+  box-shadow: 4px 4px 0 var(--edge-shadow);
+}
+.bubble::after {
+  content: "";
+  position: absolute;
+  left: 38px;
+  bottom: -13px;
+  width: 20px;
+  height: 20px;
+  background: var(--surface);
+  border-right: 4px solid var(--edge);
+  border-bottom: 4px solid var(--edge);
+  rotate: 45deg;
+}
+
+.star { position: absolute; width: 26px; height: 26px; shape-rendering: crispEdges; animation: twinkle 2.4s steps(2) infinite; }
+.st1 { top: 38px;  left: 52%; }
+.st2 { top: 190px; left: 4%;  animation-delay: -0.8s; }
+.st3 { top: 120px; right: 6%; animation-delay: -1.6s; width: 34px; height: 34px; }
+@keyframes twinkle { 50% { opacity: 0.2; } }
+
+/* ---------- Worlds ---------- */
+.world {
+  position: relative;
+  z-index: 1;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 70px 20px 20px;
+}
+.w1 { --wbg: #ffe66d; --a1: #ffe66d; --a2: #ffc8b8; --a3: #ffb3d1; }
+.w2 { --wbg: #a9dcf5; --a1: #8ecae6; --a2: #b9f0d5; --a3: #ffe66d; }
+.w3 { --wbg: #dcc9f5; --a1: #d9c7f0; --a2: #ffb3d1; --a3: #b9f0d5; }
+.w4 { --wbg: #b9f0d5; --a1: #b9f0d5; --a2: #ffc8b8; --a3: #8ecae6; }
+
+.world-head {
+  background: var(--wbg);
+  border: 4px solid var(--edge);
+  border-radius: 26px;
+  box-shadow: 8px 8px 0 var(--edge-shadow);
+  padding: 22px 26px 26px;
+  margin-bottom: 46px;
+}
+.world-title { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.badge {
+  font-family: var(--font-pixel);
+  font-size: 0.7rem;
+  line-height: 1;
+  color: var(--on-ink);
+  background: var(--ink);
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+.world-title h2 {
+  flex: 1 1 auto;
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  font-size: clamp(1.1rem, 3.2vw, 1.9rem);
+  line-height: 1.4;
+  text-shadow: 3px 3px 0 var(--title-glow);
+}
+
+/* Level map */
+.path {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: stop;
+}
+.path > li {
+  position: relative;
+  flex: 1 1 190px;
+  padding: 0 12px 4px;
+  text-align: center;
+  counter-increment: stop;
+}
+.path > li::before {
+  content: counter(stop);
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin: 0 auto 10px;
+  font-family: var(--font-pixel);
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 4px solid var(--edge);
+  border-radius: 50%;
+  box-shadow: 3px 3px 0 var(--edge-shadow);
+  position: relative;
+  z-index: 1;
+}
+.path > li::after {
+  content: "";
+  position: absolute;
+  top: 21px;
+  left: calc(50% + 32px);
+  right: calc(-50% + 32px);
+  border-top: 4px dashed var(--edge);
+}
+.path > li:last-child::after { display: none; }
+.path > li > span { font-weight: 600; line-height: 1.3; display: block; }
+
+.mini {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.mini li {
+  font-family: var(--font-code);
+  font-size: 1.3rem;
+  line-height: 1;
+  padding: 3px 9px;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 8px;
+}
+
+/* ---------- Slide grid ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 40px 34px;
+}
+.s-12 { grid-column: span 12; }
+.s-6  { grid-column: span 6; }
+
+/* ---------- Slide card ---------- */
+.slide {
+  --accent: var(--a1);
+  --tint: var(--surface-2);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--surface);
+  border: 4px solid var(--edge);
+  border-radius: 22px;
+  box-shadow: 8px 8px 0 var(--edge-shadow);
+  overflow: hidden;
+}
+.grid > .slide:nth-child(3n+2) { --accent: var(--a2); }
+.grid > .slide:nth-child(3n+3) { --accent: var(--a3); }
+@supports (color: color-mix(in srgb, red 10%, white)) {
+  .slide { --tint: color-mix(in srgb, var(--accent) 26%, var(--surface)); }
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: var(--accent);
+  border-bottom: 4px solid var(--edge);
+}
+.dots { display: flex; gap: 6px; flex: none; }
+.dots i { display: block; width: 12px; height: 12px; background: var(--surface); border: 3px solid var(--edge); }
+.bar h3 {
+  flex: 1;
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  font-size: clamp(0.72rem, 1.5vw, 0.95rem);
+  line-height: 1.7;
+}
+.ico { margin-right: 0.7em; }
+.no {
+  flex: none;
+  font-family: var(--font-pixel);
+  font-size: 0.6rem;
+  line-height: 1;
+  padding: 6px 7px;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 6px;
+}
+.world-title .no { background: var(--surface); }
+
+.body { flex: 1; padding: 20px 22px 24px; }
+.body > * + * { margin-top: 18px; }
+
+/* ---------- Topic blocks ---------- */
+.topics { display: grid; gap: 18px; grid-template-columns: 1fr; }
+.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.topic {
+  min-width: 0;
+  padding: 14px 16px 14px;
+  background: var(--tint);
+  border: 3px dashed var(--edge);
+  border-radius: 16px;
+}
+.topic > * + * { margin-top: 10px; }
+.topic p { margin: 0; }
+.topic > h4 {
+  display: inline-block;
+  margin: 0;
+  padding: 3px 12px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.3;
+  background: var(--accent);
+  border: 3px solid var(--edge);
+  border-radius: 14px;
+  rotate: -1deg;
+}
+.topic > h4 + * { margin-top: 12px; }
+.lead { margin: 0; font-weight: 600; font-size: 1.12rem; }
+.note {
+  margin: 20px 0 0;
+  padding-top: 12px;
+  font-weight: 500;
+  border-top: 3px dashed var(--edge);
+}
+.callout {
+  margin: 18px 0 0;
+  padding: 12px 16px;
+  font-weight: 600;
+  background: var(--butter);
+  border: 3px solid var(--edge);
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 var(--edge-shadow);
+}
+.plus { font-weight: 500; }
+
+/* ---------- Bullets ---------- */
+.bullets,
+.bullets ul { margin: 0; padding: 0; list-style: none; }
+.bullets li { position: relative; margin: 0.5em 0; padding-left: 28px; }
+.bullets > li:first-child { margin-top: 0; }
+.bullets > li:last-child { margin-bottom: 0; }
+.bullets li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: calc(0.775em - 6px);
+  width: 12px;
+  height: 12px;
+  background: var(--accent);
+  border: 3px solid var(--edge);
+}
+.bullets ul { margin: 0.35em 0 0.2em; }
+.bullets ul li { margin: 0.3em 0; }
+.bullets ul li::before {
+  width: 10px;
+  height: 10px;
+  top: calc(0.775em - 5px);
+  background: var(--surface);
+  border-radius: 50%;
+}
+
+/* ---------- Stickers ---------- */
+.sticker {
+  display: inline-block;
+  padding: 1px 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  background: var(--butter);
+  border: 3px solid var(--edge);
+  border-radius: 12px;
+  box-shadow: 3px 3px 0 var(--edge-shadow);
+  rotate: -1.2deg;
+}
+.sticker.warn { background: var(--coral); }
+.sticker.tip  { background: var(--mint); }
+
+/* ---------- Keyword chips ---------- */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+  padding: 4px 2px 6px;
+  list-style: none;
+}
+.chips li {
+  font-family: var(--font-code);
+  font-size: 1.45rem;
+  line-height: 1;
+  padding: 6px 11px 5px;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 10px;
+  box-shadow: 3px 3px 0 var(--edge-shadow);
+  transition: translate 0.12s, rotate 0.12s;
+}
+.chips li:nth-child(odd)  { rotate: -1.5deg; }
+.chips li:nth-child(even) { rotate: 1.2deg; }
+.chips li:hover { rotate: 0deg; translate: 0 -4px; }
+.chips.reserved li { background: var(--chip-res); }
+.chips.lit li { background: var(--mint); }
+.chips.avoid li { background: var(--peach); }
+
+/* ---------- Code windows ---------- */
+.code {
+  margin: 0;
+  overflow: hidden;
+  background: var(--surface-2);
+  border: 3px solid var(--edge);
+  border-radius: 14px;
+  box-shadow: 4px 4px 0 var(--edge-shadow);
+}
+.topic > .code { margin-top: 12px; }
+.code figcaption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  line-height: 1.4;
+  background: var(--sky-2);
+  border-bottom: 3px solid var(--edge);
+}
+.lights { display: flex; gap: 5px; }
+.lights i { display: block; width: 10px; height: 10px; background: var(--surface); border: 2px solid var(--edge); }
+.lights i:nth-child(1) { background: var(--coral); }
+.lights i:nth-child(2) { background: var(--butter); }
+.lights i:nth-child(3) { background: var(--mint); }
+.code pre {
+  margin: 0;
+  padding: 12px 16px;
+  overflow-x: auto;
+  font-family: var(--font-code);
+  font-size: 1.5rem;
+  line-height: 1.2;
+  white-space: pre;
+}
+.code pre code { padding: 0; font-size: inherit; background: none; border: 0; border-radius: 0; }
+.k { color: #d6336c; }
+.s { color: #2b8a3e; }
+.c { color: #667085; }
+.f { color: #1971c2; }
+.n { color: #e8590c; }
+
+.codes { display: grid; gap: 22px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* ---------- Input and output ---------- */
+.io {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+}
+.io::before {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 50%;
+  border-top: 4px dashed var(--edge);
+}
+.io-card {
+  position: relative;
+  z-index: 1;
+  padding: 16px 20px;
+  background: var(--tint);
+  border: 3px solid var(--edge);
+  border-radius: 18px;
+  box-shadow: 5px 5px 0 var(--edge-shadow);
+}
+.io-card h4 { margin: 0 0 4px; font-size: 1.2rem; }
+.io-card p { margin: 0; }
+.dom-node {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  margin: 0 -10px;
+  font-family: var(--font-pixel);
+  font-size: 0.85rem;
+  background: var(--butter);
+  border: 4px solid var(--edge);
+  border-radius: 50%;
+  box-shadow: 4px 4px 0 var(--edge-shadow);
+}
+
+/* ---------- Footer ---------- */
+.foot {
+  position: relative;
+  z-index: 1;
+  padding: 70px 20px 90px;
+  text-align: center;
+}
+.clear {
+  margin: 0 0 30px;
+  font-family: var(--font-pixel);
+  font-size: clamp(1rem, 3vw, 1.6rem);
+  color: var(--coral);
+  text-shadow: 3px 0 var(--edge-shadow), -3px 0 var(--edge-shadow), 0 3px var(--edge-shadow), 0 -3px var(--edge-shadow),
+    3px 3px var(--edge-shadow), -3px -3px var(--edge-shadow), 3px -3px var(--edge-shadow), -3px 3px var(--edge-shadow),
+    6px 6px 0 var(--edge-shadow);
+}
+
+/* ---------- In simple words ---------- */
+.simple {
+  margin-top: 22px;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 var(--edge-shadow);
+  overflow: hidden;
+}
+.world-head .simple { --accent: var(--wbg); margin-top: 28px; text-align: left; }
+.simple > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  font-family: var(--font-pixel);
+  font-size: 0.62rem;
+  line-height: 1.6;
+  color: var(--on-ink);
+  background: var(--ink);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.simple > summary::-webkit-details-marker { display: none; }
+.simple > summary::before { content: ""; flex: none; width: 10px; height: 10px; background: var(--butter); }
+.simple > summary::after { content: "-"; margin-left: auto; }
+.simple:not([open]) > summary::after { content: "+"; }
+.simple > summary:focus-visible { outline: 4px solid var(--coral); outline-offset: -4px; }
+.simple-body { padding: 16px 18px 18px; font-size: 1.05rem; }
+.simple-body > * + * { margin-top: 14px; }
+.simple-body p { margin: 0; }
+.analogy,
+.nb {
+  padding: 10px 14px;
+  border: 3px solid var(--edge);
+  border-radius: 14px;
+}
+.analogy { background: var(--butter); box-shadow: 3px 3px 0 var(--edge-shadow); }
+.nb { background: var(--mint); }
+.simple .code figcaption { text-transform: none; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 980px) {
+  .hero { grid-template-columns: 1fr; padding-top: 50px; }
+  .mascot { order: -1; }
+  .cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .codes { grid-template-columns: 1fr; }
+  .s-6 { grid-column: span 12; }
+}
+
+@media (max-width: 680px) {
+  body { font-size: 1.05rem; }
+  .hud-inner { gap: 10px; padding: 8px 14px; }
+  .world { padding: 54px 14px 10px; }
+  .hero { padding-left: 14px; padding-right: 14px; }
+  .title span { --o: 2px; }
+  .cols-2, .cols-3 { grid-template-columns: 1fr; }
+  .world-head { padding: 18px 16px 20px; box-shadow: 6px 6px 0 var(--edge-shadow); }
+  .path > li { flex-basis: 100%; padding-bottom: 14px; }
+  .path > li::after { display: none; }
+  .grid { gap: 32px; }
+  .body { padding: 16px 16px 20px; }
+  .dots { display: none; }
+  .io { grid-template-columns: 1fr; gap: 16px; justify-items: center; }
+  .io::before { left: 50%; right: auto; top: 8%; bottom: 8%; border-top: 0; border-left: 4px dashed var(--edge); }
+  .io-card { width: 100%; }
+  .dom-node { margin: 0; }
+  .st1, .st2 { display: none; }
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  .cloud { translate: 12vw 0; }
+}
+
+@media (max-width: 680px) {
+  .simple-body { padding: 14px 14px 16px; }
+  .simple > summary { font-size: 0.55rem; }
+}
+
+
+/* ==========================================================
+   Study hub additions
+   Hub page, tables, CSS mini-charts, question cards.
+   Everything above this line is the original MAD-II theme.
+   ========================================================== */
+
+/* ---------- Extra column layout ---------- */
+.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* ---------- Navigation extras ---------- */
+.hud nav a.hub-link { background: var(--peach); }
+.hud nav a.hub-link:hover { background: var(--butter); }
+.foot .btn { margin: 4px 6px; }
+
+/* ---------- Hub landing page ---------- */
+.eyebrow {
+  display: inline-block;
+  margin: 0 0 20px;
+  padding: 8px 10px;
+  font-family: var(--font-pixel);
+  font-size: 0.6rem;
+  line-height: 1.4;
+  color: var(--on-ink);
+  background: var(--ink);
+  border-radius: 8px;
+}
+.lede { margin: -8px 0 26px; max-width: 36ch; font-size: 1.3rem; font-weight: 500; line-height: 1.4; }
+.wh { --wbg: #ffc8b8; --a1: #ffe66d; --a2: #a9dcf5; --a3: #d9c7f0; }
+
+.subject .body { display: flex; flex-direction: column; gap: 14px; }
+.subject .body > * + * { margin-top: 0; }
+.subject .world-links { margin: 0; }
+.subject .push { margin-top: auto; padding-top: 6px; }
+.subject .push .btn { margin-left: 4px; }
+.slide.ghost { background: transparent; border-style: dashed; box-shadow: none; }
+.slide.ghost .bar { background: transparent; border-bottom-style: dashed; }
+.slide.ghost .body { color: var(--muted); }
+
+/* ---------- Tables ---------- */
+.tbl-wrap { overflow-x: auto; border-radius: 14px; }
+.tbl {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 14px;
+  overflow: hidden;
+  font-size: 1rem;
+}
+.tbl.min { min-width: 520px; }
+.tbl.min-lg { min-width: 680px; }
+.tbl th,
+.tbl td {
+  padding: 9px 12px;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 2px dashed var(--rule);
+}
+.tbl thead th {
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  font-size: 0.58rem;
+  line-height: 1.7;
+  background: var(--accent);
+  border-bottom: 3px solid var(--edge);
+}
+.tbl tbody tr:last-child th,
+.tbl tbody tr:last-child td { border-bottom: 0; }
+.tbl tbody th { font-weight: 700; }
+.tbl .num { text-align: right; font-variant-numeric: tabular-nums; }
+.tbl tr.hl th,
+.tbl tr.hl td { background: var(--hl); }
+.tbl tfoot th,
+.tbl tfoot td { border-top: 3px solid var(--edge); border-bottom: 0; font-weight: 700; background: var(--tint); }
+.tbl .cico { width: 38px; height: 38px; vertical-align: middle; }
+.tbl .tricky th,
+.tbl .tricky td { background: var(--tricky); }
+
+/* Same table, two looks (data-ink principle) */
+.tbl.heavy { background: var(--heavy-bg); border-radius: 0; }
+.tbl.heavy th,
+.tbl.heavy td { border: 2px solid var(--edge); }
+.tbl.heavy thead th { background: var(--heavy-head); font-family: var(--font-body); font-size: 0.95rem; font-weight: 700; }
+.tbl.plain { border: 0; background: transparent; border-radius: 0; }
+.tbl.plain th,
+.tbl.plain td { border: 0; padding: 6px 12px; }
+.tbl.plain thead th {
+  background: none;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 700;
+  border-bottom: 2px solid var(--edge);
+}
+
+/* ---------- Chart icons ---------- */
+.cico { width: 46px; height: 46px; flex: none; display: inline-block; vertical-align: middle; }
+
+/* ---------- CSS mini charts ---------- */
+.mchart { margin: 0; --h: 150px; }
+.mchart > figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.plot { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; padding: 24px 0 32px; }
+.yt {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: var(--h);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: right;
+  font-family: var(--font-code);
+  font-size: 1.15rem;
+  line-height: 1;
+}
+.area {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  height: var(--h);
+  padding: 0 8px;
+  border-left: 3px solid var(--edge);
+  border-bottom: 3px solid var(--edge);
+}
+.mb {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  height: calc(var(--v) * 100%);
+  background: var(--sky-2);
+  border: 3px solid var(--edge);
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+}
+.mb.hl { background: var(--coral); }
+.mb.alt { background: var(--butter); }
+.mb.good { background: var(--mint); }
+.mb b,
+.mb em {
+  position: absolute;
+  left: 50%;
+  font-family: var(--font-code);
+  font-size: 1.15rem;
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1;
+  white-space: nowrap;
+}
+.mb b { bottom: 100%; translate: -50% -4px; }
+.mb em { top: 100%; translate: -50% 9px; }
+.mchart.nolabels .mb b { display: none; }
+
+.mchart.dense { --h: 190px; }
+.mchart.dense .plot { padding-bottom: 96px; }
+.mchart.dense .area { gap: 5px; padding: 0 5px; }
+.mchart.dense .mb { border-width: 2px; border-bottom: 0; border-radius: 4px 4px 0 0; }
+.mchart.dense .mb b { display: none; }
+.mchart.dense .mb em {
+  writing-mode: vertical-rl;
+  rotate: 180deg;
+  translate: -50% 8px;
+  font-size: 1.05rem;
+}
+.chart-scroll { overflow-x: auto; padding-bottom: 4px; }
+.chart-scroll > .mchart { min-width: 520px; }
+
+.sw {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  vertical-align: -2px;
+  background: var(--sky-2);
+  border: 3px solid var(--edge);
+}
+.sw.hl { background: var(--coral); }
+.sw.alt { background: var(--butter); }
+
+/* Pie made from a gradient */
+.pie {
+  width: 140px;
+  aspect-ratio: 1;
+  flex: none;
+  border: 3px solid var(--edge);
+  border-radius: 50%;
+}
+.pie.tilt {
+  transform: perspective(260px) rotateX(58deg);
+  transform-origin: 50% 50%;
+  margin: -18px 0 -6px;
+  box-shadow: 0 20px 0 0 #555873, 0 20px 0 3px var(--edge-shadow);
+}
+
+/* ---------- Misleading vs honest ---------- */
+.versus { display: grid; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.vbox {
+  min-width: 0;
+  padding: 12px 14px 14px;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 var(--edge-shadow);
+}
+.vbox > * + * { margin-top: 10px; }
+.vbox p { margin: 0; }
+.verdict {
+  display: inline-block;
+  padding: 6px 8px;
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  line-height: 1.4;
+  border: 3px solid var(--edge);
+  border-radius: 8px;
+}
+.verdict.bad  { background: var(--coral); }
+.verdict.good { background: var(--mint); }
+
+/* ---------- Three-step flow ---------- */
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 38px;
+  margin: 0;
+  padding: 10px 0 0;
+  list-style: none;
+  counter-reset: st;
+}
+.steps > li {
+  position: relative;
+  counter-increment: st;
+  padding: 18px 16px 14px;
+  background: var(--tint);
+  border: 3px solid var(--edge);
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 var(--edge-shadow);
+}
+.steps > li::before {
+  content: "Step " counter(st);
+  position: absolute;
+  top: -14px;
+  left: 14px;
+  padding: 6px 8px;
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  line-height: 1;
+  color: var(--on-ink);
+  background: var(--ink);
+  border-radius: 6px;
+}
+.steps > li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -27px;
+  width: 16px;
+  height: 16px;
+  border-top: 5px solid var(--edge);
+  border-right: 5px solid var(--edge);
+  rotate: 45deg;
+  translate: 0 -50%;
+}
+.steps h4 { margin: 0 0 8px; font-size: 1.15rem; line-height: 1.3; }
+.steps p { margin: 0; }
+.steps .bullets { margin-top: 6px; }
+
+/* ---------- Definition chain ---------- */
+.chain {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: center;
+}
+.chain .key {
+  width: min(100%, 540px);
+  padding: 10px 16px;
+  font-weight: 700;
+  background: var(--tint);
+  border: 3px solid var(--edge);
+  border-radius: 14px;
+  box-shadow: 3px 3px 0 var(--edge-shadow);
+}
+.chain .join {
+  padding: 2px 0;
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  line-height: 1.5;
+}
+
+/* ---------- Data-type nesting ---------- */
+.dbox {
+  min-width: 0;
+  padding: 14px 16px 16px;
+  background: var(--tint);
+  border: 3px solid var(--edge);
+  border-radius: 16px;
+}
+.dbox > h4 { margin: 0 0 10px; font-size: 1.1rem; line-height: 1.3; }
+.dbox p { margin: 0; }
+.dbox .dbox { background: var(--surface); box-shadow: 3px 3px 0 var(--edge-shadow); }
+.dbox .dbox .dbox { background: var(--tint); }
+.dgrid { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dgrid > * + * { margin-top: 0; }
+.ex { margin-top: 8px !important; font-family: var(--font-code); font-size: 1.3rem; line-height: 1.15; }
+
+/* ---------- Big numbers ---------- */
+.stat { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); text-align: center; }
+.stat > div { padding: 14px 10px; background: var(--tint); border: 3px solid var(--edge); border-radius: 16px; }
+.stat b {
+  display: block;
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  font-size: clamp(1.3rem, 4.4vw, 2.2rem);
+  line-height: 1.3;
+}
+.stat span { display: block; font-weight: 600; }
+
+/* ---------- Slide question and answer ---------- */
+.ask,
+.ans {
+  padding: 12px 16px;
+  border: 3px solid var(--edge);
+  border-radius: 16px;
+  font-weight: 500;
+}
+.ask { background: var(--butter); box-shadow: 4px 4px 0 var(--edge-shadow); font-weight: 600; }
+.ans { background: var(--mint); }
+.ask::before,
+.ans::before {
+  display: block;
+  margin-bottom: 6px;
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.ask::before { content: "Slide asks"; }
+.ans::before { content: "Answer"; }
+.ask[data-label]::before,
+.ans[data-label]::before { content: attr(data-label); }
+.ask p, .ans p { margin: 0; }
+.ask > * + *, .ans > * + * { margin-top: 8px; }
+
+/* ---------- Example cards (form choice) ---------- */
+.exs {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.exs li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  background: var(--tint);
+  border: 3px solid var(--edge);
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 var(--edge-shadow);
+}
+.exs .cico { width: 56px; height: 56px; }
+.exs h4 { margin: 0; font-size: 1.05rem; line-height: 1.3; }
+.exs p { margin: 0; font-size: 0.98rem; }
+.exs .type {
+  align-self: flex-start;
+  padding: 5px 7px;
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  line-height: 1.5;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 8px;
+}
+
+/* ---------- Practice questions ---------- */
+.qnav { display: flex; flex-wrap: wrap; gap: 9px; margin: 26px 0 0; padding: 0; list-style: none; }
+.qnav a {
+  display: block;
+  padding: 9px 10px;
+  font-family: var(--font-pixel);
+  font-size: 0.6rem;
+  line-height: 1;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 8px;
+  box-shadow: 3px 3px 0 var(--edge-shadow);
+}
+.qnav a:hover { background: var(--butter); translate: 0 -2px; }
+.qnav a.tricky { background: var(--peach); }
+.qnav-key { margin: 14px 0 0; font-size: 0.95rem; font-weight: 500; }
+
+.qtag {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 7px 9px;
+  font-family: var(--font-pixel);
+  font-size: 0.6rem;
+  line-height: 1;
+  color: var(--on-ink);
+  vertical-align: middle;
+  background: var(--ink);
+  border-radius: 7px;
+}
+.qtext { margin: 0; font-weight: 600; font-size: 1.1rem; }
+.qbox > * + * { margin-top: 12px; }
+.qbox .opts { margin-top: 12px; }
+
+.opts { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.opts.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.opts li {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 12px;
+  line-height: 1.35;
+}
+.opts li > b {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-top: -1px;
+  font-family: var(--font-pixel);
+  font-size: 0.6rem;
+  font-weight: 400;
+  line-height: 1;
+  background: var(--accent);
+  border: 3px solid var(--edge);
+  border-radius: 6px;
+}
+.opts li.ok { padding-right: 40px; background: var(--mint); }
+.opts li.ok::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 15px;
+  width: 8px;
+  height: 15px;
+  border-right: 4px solid var(--edge);
+  border-bottom: 4px solid var(--edge);
+  rotate: 45deg;
+  translate: 0 -70%;
+}
+
+.answer-line { font-weight: 700; }
+.answer-line .pill {
+  display: inline-block;
+  margin: 0 2px;
+  padding: 1px 10px;
+  background: var(--mint);
+  border: 3px solid var(--edge);
+  border-radius: 10px;
+}
+
+/* ---------- Responsive additions ---------- */
+@media (max-width: 980px) {
+  .cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .steps { grid-template-columns: 1fr; gap: 40px; }
+  .steps > li:not(:last-child)::after {
+    top: auto;
+    right: auto;
+    bottom: -29px;
+    left: 50%;
+    rotate: 135deg;
+    translate: -50% 0;
+  }
+}
+
+@media (max-width: 680px) {
+  .cols-4,
+  .versus,
+  .dgrid,
+  .opts.two { grid-template-columns: 1fr; }
+  .stat { gap: 10px; }
+  .lede { font-size: 1.15rem; }
+  .qnav a { padding: 8px 9px; font-size: 0.55rem; }
+}
+
+/* ---------- Spacing fixes ---------- */
+/* `.simple-body p { margin: 0}` outranks `.simple-body > * + *`, so paragraphs after
+   another element had no gap. Restore the intended 14px rhythm. */
+.simple-body > * + p { margin-top: 14px; }
+.tbl-wrap + p,
+.tbl-wrap + .note-line { margin-top: 12px; }
+.note-line .sticker { display: block; width: fit-content; margin-bottom: 8px; }
+
+.grid.top > .slide { align-self: start; }
+.tbl-wrap + .mchart { margin-top: 16px; }
+.mb em { text-align: center; }
+.versus .mb b,
+.versus .mb em { font-size: 1rem; }
+.tbl.tight th,
+.tbl.tight td { padding: 8px 8px; }
+.tbl.tight { font-size: 0.95rem; }
+.qtext + .opts,
+.qtext + .sticker,
+.qtext + .qmeta { margin-top: 10px; }
+.sticker + .opts { margin-top: 10px; }
+.ans .answer-line { margin-top: 12px; }
+
+/* Phones: turn wide tables into stacked cards so no column hides off-screen */
+@media (max-width: 680px) {
+  .tbl.stack { min-width: 0; }
+  .tbl.stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .tbl.stack,
+  .tbl.stack tbody,
+  .tbl.stack tr,
+  .tbl.stack th,
+  .tbl.stack td { display: block; }
+  .tbl.stack tr { padding: 8px 0 10px; border-bottom: 3px solid var(--edge); }
+  .tbl.stack tbody tr:last-child { border-bottom: 0; }
+  .tbl.stack th,
+  .tbl.stack td { padding: 4px 14px; border: 0; }
+  .tbl.stack tbody tr:last-child th,
+  .tbl.stack tbody tr:last-child td { border-bottom: 0; }
+  .tbl.stack tbody th { font-size: 1.1rem; }
+  .tbl.stack td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    font-family: var(--font-pixel);
+    font-size: 0.5rem;
+    line-height: 1.6;
+    opacity: 0.65;
+  }
+}
+
+/* ==========================================================
+   Business Analytics page: calm layout, part tabs, lesson list, quiz
+   Everything is scoped to  body.ba  so MAD-II and the hub keep their look.
+   ========================================================== */
+
+.ba {
+  --good: #1f7a50;
+  --bad: #c0392b;
+  --amber: #c98a00;
+}
+:root[data-theme="dark"] .ba {
+  --good: #6fe0a6;
+  --bad: #ff8d8d;
+  --amber: #ffd04a;
+}
+.ba .w1 { --wacc: var(--butter);  --wstrong: #c98a00; }
+.ba .w2 { --wacc: var(--sky-2);   --wstrong: #2b83b8; }
+.ba .w3 { --wacc: var(--lilac);   --wstrong: #7d55c9; }
+:root[data-theme="dark"] .ba .w1 { --wstrong: #ffd04a; }
+:root[data-theme="dark"] .ba .w2 { --wstrong: #6cc3f0; }
+:root[data-theme="dark"] .ba .w3 { --wstrong: #b79cf5; }
+
+.ba .sky { display: none; }
+
+/* ---------- Top bar: current part ---------- */
+.ba .hud nav a[aria-current="true"] { background: var(--butter); }
+.ba .hud nav a[aria-current="true"]::after { content: none; }
+
+/* ---------- Hero, smaller ---------- */
+.ba .hero { padding: 40px 20px 6px; gap: 20px; }
+.ba .hero .title { margin-bottom: 22px; }
+.ba .lede { margin-bottom: 0; }
+.ba .mascot { width: min(200px, 56vw); padding-top: 74px; }
+.ba .bubble { font-size: 0.95rem; padding: 6px 14px; }
+.ba .st2 { display: none; }
+
+/* ---------- Part picker ---------- */
+.parts {
+  position: relative;
+  z-index: 1;
+  max-width: 1180px;
+  margin: 18px auto 0;
+  padding: 0 20px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.part {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "n t" "n d" "n c";
+  column-gap: 14px;
+  row-gap: 2px;
+  align-items: start;
+  padding: 16px 18px;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--surface);
+  border: 2px solid var(--edge);
+  border-radius: 18px;
+  transition: translate 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.part:hover { background: var(--surface-2); translate: 0 -2px; }
+.part-n {
+  grid-area: n;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  font-family: var(--font-pixel);
+  font-size: 0.8rem;
+  background: var(--pacc);
+  border: 2px solid var(--edge);
+  border-radius: 12px;
+}
+.part-t { grid-area: t; font-size: 1.15rem; font-weight: 700; line-height: 1.25; }
+.part-d { grid-area: d; font-size: 0.95rem; line-height: 1.4; color: var(--muted); }
+.part-c { grid-area: c; margin-top: 6px; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink); opacity: 0.85; }
+.part[aria-current="true"] {
+  background: color-mix(in srgb, var(--pacc) 38%, var(--surface));
+  box-shadow: 0 5px 0 var(--edge-shadow);
+  translate: 0 -3px;
+}
+
+/* ---------- A part = lesson list + lessons ---------- */
+.ba .world {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  column-gap: 40px;
+  align-items: start;
+  padding: 34px 20px 24px;
+}
+.js .world[data-tab]:not(.on) { display: none; }
+.ba .w3 { grid-template-columns: minmax(0, 860px); justify-content: center; }
+
+.ba .rail { grid-column: 1; grid-row: 1 / span 3; position: sticky; top: 96px; max-height: calc(100vh - 118px); overflow-y: auto; padding-right: 6px; }
+.ba .world-head,
+.ba .grid { grid-column: 2; }
+.ba .w3 .world-head,
+.ba .w3 .grid { grid-column: 1; }
+
+.rail-title { margin: 0 0 10px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+.rail ol { margin: 0; padding: 0; list-style: none; counter-reset: rl; }
+.rail li { margin: 0; }
+.rail .grp {
+  margin: 18px 0 6px;
+  padding-left: 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--wstrong) 55%, var(--ink));
+}
+.rail .grp:first-child { margin-top: 0; }
+.rail li:not(.grp) { counter-increment: rl; }
+.rail a {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 7px 10px;
+  font-size: 0.95rem;
+  line-height: 1.3;
+  color: var(--ink);
+  text-decoration: none;
+  border-radius: 10px;
+}
+.rail a::before {
+  content: counter(rl);
+  flex: none;
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  margin-top: -1px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  background: var(--surface);
+  border: 2px solid var(--edge);
+  border-radius: 8px;
+}
+.rail a:hover { background: var(--surface-2); }
+.rail a[aria-current="true"] { background: color-mix(in srgb, var(--wacc) 40%, var(--surface)); font-weight: 700; }
+.rail a[aria-current="true"]::before { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+
+/* ---------- Part header ---------- */
+.ba .world-head {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 26px;
+  padding: 28px 30px 26px;
+  background: var(--surface);
+  border: 2px solid var(--edge);
+  border-radius: 22px;
+  box-shadow: 0 5px 0 var(--edge-shadow);
+}
+.ba .world-head::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 8px; background: var(--wacc); }
+.ba .world-title { gap: 12px; }
+.ba .badge {
+  padding: 5px 12px;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--wacc) 55%, var(--surface));
+  border: 2px solid var(--edge);
+  border-radius: 999px;
+}
+.ba .world-title h2 { font-family: var(--font-body); font-weight: 700; font-size: clamp(1.6rem, 3.4vw, 2.2rem); line-height: 1.2; text-shadow: none; }
+.world-intro { margin-top: 16px; font-size: 1.08rem; }
+.world-intro > * + * { margin-top: 12px; }
+.world-intro p { margin: 0; }
+
+/* ---------- Lesson cards ---------- */
+.ba .grid { display: flex; flex-direction: column; gap: 28px; counter-reset: lesson; }
+.ba .slide,
+.ba .grid > .slide:nth-child(n) {
+  --accent: var(--wacc);
+  --tint: color-mix(in srgb, var(--wacc) 16%, var(--surface));
+  background: var(--surface);
+  border: 2px solid var(--edge);
+  border-radius: 22px;
+  box-shadow: 0 5px 0 var(--edge-shadow);
+}
+.ba .bar {
+  gap: 14px;
+  padding: 16px 24px;
+  background: transparent;
+  border-bottom: 2px solid var(--rule);
+}
+.ba .bar::before {
+  counter-increment: lesson;
+  content: counter(lesson);
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  font-family: var(--font-pixel);
+  font-size: 0.7rem;
+  background: var(--wacc);
+  border: 2px solid var(--edge);
+  border-radius: 50%;
+}
+.ba .bar h3 { font-family: var(--font-body); font-weight: 700; font-size: clamp(1.1rem, 2.2vw, 1.35rem); line-height: 1.3; }
+.ba .ico { margin-right: 0.45em; }
+.src { flex: none; font-size: 0.82rem; font-weight: 600; color: var(--muted); text-align: right; }
+.ba .body { padding: 22px 26px 28px; }
+.ba .body > * + * { margin-top: 20px; }
+
+.sec-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 -6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.sec-label::after { content: ""; flex: 1; height: 2px; background: var(--rule); }
+
+/* parallel blocks: plain columns with a thin divider, not boxes in boxes */
+.ba .topics { gap: 28px 36px; }
+.ba .topic { padding: 0; background: none; border: 0; border-radius: 0; }
+.ba .topics.cols-2 > .topic:not(:first-child),
+.ba .topics.cols-3 > .topic:not(:first-child),
+.ba .topics.cols-4 > .topic:not(:first-child) { padding-left: 34px; border-left: 2px solid var(--rule); }
+.ba .topic > h4 {
+  position: relative;
+  display: block;
+  margin: 0 0 12px;
+  padding: 0 0 10px;
+  font-size: 1.08rem;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  rotate: none;
+}
+.ba .topic > h4::after { content: ""; position: absolute; left: 0; bottom: 0; width: 38px; height: 4px; border-radius: 2px; background: var(--wstrong); }
+.ba .topic > h4 + * { margin-top: 0; }
+.ba .topic > .ask,
+.ba .topic > .ans { margin-top: 14px; }
+
+.ba .lead { font-size: 1.15rem; }
+.ba .note { border-top: 2px solid var(--rule); }
+
+/* bullets: small coloured squares */
+.ba .bullets li { padding-left: 22px; }
+.ba .bullets li::before { left: 2px; top: calc(0.775em - 4px); width: 8px; height: 8px; background: var(--wstrong); border: 0; border-radius: 2px; }
+.ba .bullets ul li::before { width: 7px; height: 7px; top: calc(0.775em - 3.5px); background: none; border: 2px solid var(--wstrong); border-radius: 50%; }
+
+/* slide question / answer */
+.ba .ask,
+.ba .ans {
+  padding: 14px 18px 14px 20px;
+  background: color-mix(in srgb, var(--wacc) 24%, var(--surface));
+  border: 0;
+  border-left: 5px solid var(--wstrong);
+  border-radius: 6px 14px 14px 6px;
+  box-shadow: none;
+}
+.ba .ans { background: color-mix(in srgb, var(--mint) 50%, var(--surface)); border-left-color: var(--good); }
+.ba .ask::before,
+.ba .ans::before {
+  margin-bottom: 4px;
+  font-family: var(--font-body);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.ba .ans::before { color: var(--good); }
+
+/* stickers and chips: quiet pills */
+.ba .sticker {
+  padding: 2px 12px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  border: 2px solid var(--edge);
+  border-radius: 999px;
+  box-shadow: none;
+  rotate: none;
+}
+.ba .chips { gap: 10px; padding: 2px 0 4px; }
+.ba .chips li { padding: 4px 12px 3px; font-size: 1.3rem; border-width: 2px; border-radius: 10px; box-shadow: none; rotate: none !important; }
+.ba .chips li:hover { translate: none; }
+
+/* "In simple words" */
+.ba .simple {
+  margin-top: 26px;
+  background: color-mix(in srgb, var(--wacc) 15%, var(--surface));
+  border: 0;
+  border-radius: 18px;
+  box-shadow: none;
+}
+.ba .simple > summary {
+  gap: 10px;
+  padding: 15px 22px;
+  font-family: var(--font-body);
+  font-size: 1.02rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ink);
+  background: none;
+}
+.ba .simple > summary::before { content: "\1F4A1"; width: auto; height: auto; background: none; font-size: 1.15rem; }
+.ba .simple > summary::after,
+.ba .simple:not([open]) > summary::after {
+  content: "";
+  width: 10px;
+  height: 10px;
+  margin-left: auto;
+  border-right: 3px solid currentColor;
+  border-bottom: 3px solid currentColor;
+  rotate: 45deg;
+  translate: 0 -3px;
+  transition: rotate 0.2s;
+}
+.ba .simple[open] > summary::after { rotate: 225deg; translate: 0 3px; }
+.ba .simple-body { padding: 0 24px 24px; font-size: 1.07rem; }
+.ba .simple-body > * + * { margin-top: 16px; }
+.ba .simple-body > * + p { margin-top: 16px; }
+.ba .analogy,
+.ba .nb {
+  padding: 13px 18px;
+  border: 0;
+  border-left: 5px solid var(--amber);
+  border-radius: 6px 14px 14px 6px;
+  box-shadow: none;
+}
+.ba .analogy { background: color-mix(in srgb, var(--butter) 42%, var(--surface)); }
+.ba .nb { background: color-mix(in srgb, var(--mint) 50%, var(--surface)); border-left-color: var(--good); }
+.ba .callout { padding: 12px 18px; border: 0; border-left: 5px solid var(--amber); border-radius: 6px 14px 14px 6px; box-shadow: none; }
+
+/* tables */
+.ba .tbl { border-width: 2px; border-radius: 14px; }
+.ba .tbl thead th {
+  padding: 11px 12px;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  line-height: 1.3;
+  background: color-mix(in srgb, var(--wacc) 45%, var(--surface));
+  border-bottom: 2px solid var(--edge);
+}
+.ba .tbl tfoot th,
+.ba .tbl tfoot td { border-top-width: 2px; }
+.ba .tbl.heavy { border-radius: 0; }
+.ba .tbl.heavy thead th { font-size: 0.95rem; letter-spacing: 0; text-transform: none; background: var(--heavy-head); }
+.ba .tbl.plain thead th { background: none; font-size: 0.95rem; letter-spacing: 0; text-transform: none; border-bottom: 2px solid var(--edge); }
+
+/* side-by-side examples and flow boxes */
+.ba .vbox,
+.ba .dbox,
+.ba .stat > div,
+.ba .exs li,
+.ba .steps > li,
+.ba .chain .key { border-width: 2px; box-shadow: none; }
+.ba .vbox { border-radius: 16px; }
+.ba .dbox .dbox { box-shadow: none; }
+.ba .verdict {
+  padding: 3px 12px;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border-width: 2px;
+  border-radius: 999px;
+}
+.ba .exs .type {
+  padding: 2px 10px;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border-width: 2px;
+  border-radius: 999px;
+}
+.ba .stat b { font-family: var(--font-body); font-weight: 700; }
+.ba .steps > li::before { padding: 4px 10px; font-family: var(--font-body); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; border-radius: 999px; }
+.ba .steps > li:not(:last-child)::after { border-width: 4px; }
+.ba .chain .join { font-family: var(--font-body); font-size: 0.82rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.ba .area { border-left-width: 2px; border-bottom-width: 2px; }
+.ba .mb { border-width: 2px; }
+.ba .sw { border-width: 2px; }
+.ba .qtag { font-family: var(--font-body); font-size: 0.8rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; }
+
+/* ==========================================================
+   Quiz
+   ========================================================== */
+.ba .quiz .body { padding: 24px 26px 30px; }
+.qz { display: flex; flex-direction: column; gap: 20px; }
+.qz-top { display: grid; gap: 10px; }
+.qz-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; font-weight: 700; }
+.qz-skill {
+  padding: 3px 14px;
+  font-size: 0.86rem;
+  background: color-mix(in srgb, var(--wacc) 45%, var(--surface));
+  border: 2px solid var(--edge);
+  border-radius: 999px;
+}
+.qz-prog { height: 12px; overflow: hidden; background: var(--surface-2); border: 2px solid var(--edge); border-radius: 999px; }
+.qz-prog i { display: block; height: 100%; background: var(--wstrong); border-radius: 999px; transition: width 0.3s; }
+.qz-q { margin: 6px 0 0; font-family: var(--font-body); font-size: clamp(1.2rem, 2.6vw, 1.45rem); font-weight: 700; line-height: 1.35; }
+.qz-q:focus { outline: none; }
+.qz-hint { margin: -8px 0 0; font-size: 0.95rem; font-weight: 600; color: var(--muted); }
+.qz-chart {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 12px 20px 12px 14px;
+  background: var(--surface-2);
+  border: 2px dashed var(--edge);
+  border-radius: 16px;
+}
+.qz-chart .cico { width: 54px; height: 54px; }
+.qz-chart strong { font-size: 1.4rem; line-height: 1.2; }
+.qz-ctx { margin: 0; padding: 12px; background: #fff; border: 2px solid var(--edge); border-radius: 16px; }
+.qz-ctx img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.qz-ctx figcaption { margin-top: 8px; font-size: 0.88rem; font-weight: 600; text-align: center; color: #3a3d5c; }
+
+.qz-opts { display: grid; gap: 10px; }
+.qz-opts.imgs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.qz-opt {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  line-height: 1.35;
+  background: var(--surface);
+  border: 2px solid var(--edge);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, translate 0.1s;
+}
+.qz-opt:hover { background: var(--surface-2); translate: 0 -1px; }
+.qz-opt input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.qz-opt:has(input:focus-visible) { outline: 3px solid var(--coral); outline-offset: 2px; }
+.line17 { color: var(--ink); }
+.qz-key {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  font-weight: 700;
+  background: var(--surface-2);
+  border: 2px solid var(--edge);
+  border-radius: 50%;
+}
+.qz-opts.multi .qz-key { border-radius: 9px; }
+.qz-opt.sel { background: color-mix(in srgb, var(--wacc) 30%, var(--surface)); border-color: var(--wstrong); box-shadow: inset 0 0 0 2px var(--wstrong); }
+.qz-opt.sel .qz-key { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.qz-opt.ok { background: color-mix(in srgb, var(--mint) 55%, var(--surface)); border-color: var(--good); box-shadow: inset 0 0 0 2px var(--good); }
+.qz-opt.bad { background: color-mix(in srgb, var(--coral) 26%, var(--surface)); border-color: var(--bad); box-shadow: inset 0 0 0 2px var(--bad); }
+.qz-opt.miss { background: color-mix(in srgb, var(--mint) 24%, var(--surface)); border: 2px dashed var(--good); }
+.qz-opt.ok .qz-key { background: var(--good); color: var(--surface); border-color: var(--good); }
+.qz-opt.bad .qz-key { background: var(--bad); color: var(--surface); border-color: var(--bad); }
+.qz-opt:has(input:disabled) { cursor: default; }
+.qz-opt:has(input:disabled):hover { translate: none; }
+.qz-tag {
+  margin-left: auto;
+  flex: none;
+  padding: 1px 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background: var(--surface);
+  border: 2px solid currentColor;
+  border-radius: 999px;
+}
+.qz-opt.ok .qz-tag { color: var(--good); }
+.qz-opt.bad .qz-tag { color: var(--bad); }
+.qz-opt.miss .qz-tag { color: var(--good); }
+
+.qz-img { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "key tag enl" "pic pic pic"; gap: 10px; align-items: center; align-content: start; padding: 12px; }
+.qz-img .qz-key { grid-area: key; }
+.qz-img .qz-tag { grid-area: tag; justify-self: start; margin-left: 0; }
+.qz-img .qz-enl { grid-area: enl; }
+.qz-pic { grid-area: pic; display: block; padding: 6px; background: #fff; border-radius: 10px; }
+.qz-pic img { display: block; width: 100%; height: auto; }
+.qz-enl {
+  padding: 3px 12px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--surface);
+  border: 2px solid var(--edge);
+  border-radius: 999px;
+  cursor: zoom-in;
+}
+.qz-enl:hover { background: var(--butter); }
+
+.qz-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; }
+.qz-btn {
+  padding: 12px 24px;
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink);
+  background: var(--surface);
+  border: 2px solid var(--edge);
+  border-radius: 999px;
+  box-shadow: 0 4px 0 var(--edge-shadow);
+  cursor: pointer;
+  transition: translate 0.1s, box-shadow 0.1s, background 0.15s;
+}
+.qz-btn.go { background: var(--coral); }
+.qz-btn:hover:not(:disabled) { translate: 0 -2px; box-shadow: 0 6px 0 var(--edge-shadow); }
+.qz-btn:active:not(:disabled) { translate: 0 3px; box-shadow: 0 1px 0 var(--edge-shadow); }
+.qz-btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+.qz-btn:focus-visible { outline: 3px solid var(--wstrong); outline-offset: 3px; }
+.qz-actions .ghost:first-child:not(:last-child) { margin-right: auto; }
+
+.qz-fb { display: grid; gap: 14px; padding: 18px 22px 20px; border: 2px solid; border-radius: 18px; }
+.qz-fb.good { border-color: var(--good); background: color-mix(in srgb, var(--mint) 45%, var(--surface)); }
+.qz-fb.bad { border-color: var(--bad); background: color-mix(in srgb, var(--coral) 20%, var(--surface)); }
+.qz-fb.partial { border-color: var(--amber); background: color-mix(in srgb, var(--butter) 38%, var(--surface)); }
+.qz-fb p { margin: 0; }
+.qz-fb-h { font-size: 1.2rem; }
+.qz-fb.good .qz-fb-h strong { color: var(--good); }
+.qz-fb.bad .qz-fb-h strong { color: var(--bad); }
+.qz-fb .pill { display: inline-block; min-width: 34px; margin: 0 3px; padding: 1px 10px; font-weight: 700; text-align: center; background: var(--surface); border: 2px solid var(--edge); border-radius: 10px; }
+.qz-why-t { margin-bottom: 8px !important; font-size: 0.76rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.qz-rev { font-size: 0.95rem; }
+
+.qz-results { display: grid; gap: 20px; }
+.qz-big { margin: 0; line-height: 1; font-size: clamp(3rem, 9vw, 4.6rem); font-weight: 700; }
+.qz-big strong { color: var(--wstrong); }
+.qz-big span { font-size: 0.45em; color: var(--muted); }
+.qz-msg { margin: 0; font-size: 1.15rem; font-weight: 600; }
+.qz-skills { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.qz-skills li { display: grid; grid-template-columns: minmax(140px, 1.2fr) 2fr auto; gap: 14px; align-items: center; }
+.qz-sk { font-weight: 600; }
+.qz-bar { height: 12px; overflow: hidden; background: var(--surface-2); border: 2px solid var(--edge); border-radius: 999px; }
+.qz-bar i { display: block; height: 100%; background: var(--good); }
+.qz-sc { font-weight: 700; font-variant-numeric: tabular-nums; }
+.qz-sub { margin: 4px 0 0; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.qz-review { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.qz-review button {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  padding: 11px 16px;
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  background: var(--surface);
+  border: 2px solid var(--edge);
+  border-radius: 14px;
+  cursor: pointer;
+}
+.qz-review button:hover { background: var(--surface-2); }
+.qz-rs { flex: none; font-size: 0.88rem; font-weight: 700; color: var(--muted); }
+.qz-nojs { margin: 0; }
+
+.qz-zoom { width: min(96vw, 1000px); max-height: 94vh; padding: 12px; color: #2b2d42; background: #fff; border: 3px solid var(--edge); border-radius: 18px; }
+.qz-zoom::backdrop { background: rgba(5, 6, 15, 0.72); }
+.qz-zoom img { display: block; max-width: 100%; max-height: calc(94vh - 80px); margin: 0 auto; }
+.qz-zoom-x { display: block; margin: 0 0 10px auto; padding: 4px 14px; font: inherit; font-weight: 700; color: #2b2d42; background: #ffe66d; border: 2px solid #2b2d42; border-radius: 999px; cursor: pointer; }
+
+/* ---------- Footer, calmer ---------- */
+.ba .foot { padding-top: 50px; }
+.ba .clear { font-family: var(--font-body); font-weight: 700; font-size: clamp(1.1rem, 3vw, 1.5rem); color: var(--ink); text-shadow: none; }
+
+/* ==========================================================
+   Responsive
+   ========================================================== */
+@media (max-width: 980px) {
+  .parts { grid-template-columns: 1fr; }
+  .ba .world,
+  .ba .w3 { grid-template-columns: minmax(0, 1fr); }
+  .ba .rail,
+  .ba .world-head,
+  .ba .grid,
+  .ba .w3 .world-head,
+  .ba .w3 .grid { grid-column: 1; }
+  .ba .rail { grid-row: auto; position: static; max-height: none; margin-bottom: 18px; padding: 0; overflow: visible; }
+  .ba .rail ol { display: flex; gap: 8px; padding: 2px 2px 8px; overflow-x: auto; }
+  .ba .rail .grp { display: none; }
+  .ba .rail li { flex: none; }
+  .ba .rail a { padding: 6px 12px 6px 8px; font-size: 0.9rem; background: var(--surface); border: 2px solid var(--edge); border-radius: 999px; white-space: nowrap; }
+  .ba .rail a::before { border: 0; background: var(--surface-2); border-radius: 50%; }
+  .ba .rail-title { display: none; }
+  .ba .topics.cols-2 > .topic:not(:first-child),
+  .ba .topics.cols-3 > .topic:not(:first-child),
+  .ba .topics.cols-4 > .topic:not(:first-child) { padding-left: 0; border-left: 0; padding-top: 22px; border-top: 2px solid var(--rule); }
+  .qz-opts.imgs { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 680px) {
+  .ba .world { padding: 24px 14px 16px; }
+  .ba .world-head { padding: 22px 18px 20px; }
+  .ba .bar { padding: 14px 16px; flex-wrap: wrap; }
+  .ba .bar h3 { flex-basis: calc(100% - 56px); }
+  .ba .src { flex-basis: calc(100% - 50px); text-align: left; margin-left: 50px; margin-top: -6px; }
+  .ba .body,
+  .ba .quiz .body { padding: 18px 16px 22px; }
+  .ba .simple > summary { padding: 14px 16px; }
+  .ba .simple-body { padding: 0 16px 20px; }
+  .parts { padding: 0 14px; }
+  .qz-skills li { grid-template-columns: 1fr auto; }
+  .qz-skills .qz-bar { grid-column: 1 / -1; grid-row: 2; }
+  .qz-actions { justify-content: stretch; }
+  .qz-actions .qz-btn { flex: 1 1 140px; }
+  .qz-actions .ghost:first-child:not(:last-child) { margin-right: 0; }
+  .qz-tag { white-space: normal; text-align: right; }
+
+  /* hero: smaller mascot, tighter title shadow, fewer top-bar items */
+  .ba .hero { padding-top: 22px; gap: 4px; }
+  .ba .mascot { width: 128px; padding-top: 58px; margin-bottom: 6px; }
+  .ba .mascot::after { bottom: -10px; height: 8px; }
+  .ba .bubble { font-size: 0.85rem; padding: 5px 11px; }
+  .ba .title span {
+    text-shadow: var(--o) 0 var(--edge-shadow), calc(var(--o) * -1) 0 var(--edge-shadow),
+      0 var(--o) var(--edge-shadow), 0 calc(var(--o) * -1) var(--edge-shadow),
+      var(--o) var(--o) var(--edge-shadow), calc(var(--o) * -1) calc(var(--o) * -1) var(--edge-shadow),
+      var(--o) calc(var(--o) * -1) var(--edge-shadow), calc(var(--o) * -1) var(--o) var(--edge-shadow),
+      4px 4px 0 var(--edge-shadow);
+  }
+  .ba .hud nav a[data-tab] { display: none; }
+}
+
+/* ==========================================================
+   Theme switch + dark theme
+   ========================================================== */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  margin: 4px 4px 4px 2px;
+  padding: 10px 12px;
+  font-family: var(--font-pixel);
+  font-size: 0.62rem;
+  line-height: 1;
+  color: var(--ink);
+  background: var(--surface);
+  border: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow:
+    0 -4px 0 0 var(--edge),
+    0 4px 0 0 var(--edge),
+    -4px 0 0 0 var(--edge),
+    4px 0 0 0 var(--edge);
+  transition: translate 0.12s, background 0.12s;
+}
+.theme-toggle:hover { background: var(--butter); translate: 0 -3px; }
+.theme-toggle:active { translate: 0 2px; }
+.theme-toggle:focus-visible { outline: 4px solid var(--coral); outline-offset: 6px; }
+.tt-ico { width: 14px; height: 14px; flex: none; }
+.tt-sun { display: none; }
+:root[data-theme="dark"] .tt-moon { display: none; }
+:root[data-theme="dark"] .tt-sun { display: block; }
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --ink: #e8eaf6;
+  --edge: #6b71a8;
+  --edge-shadow: #04050f;
+  --on-ink: #14162b;
+  --surface: #1b1e3b;
+  --surface-2: #232750;
+  --paper: #161933;
+  --sky: #0d0f25;
+  --grid: rgba(120, 132, 230, 0.09);
+  --rule: rgba(232, 234, 246, 0.2);
+  --shade: rgba(0, 0, 0, 0.4);
+  --muted: rgba(232, 234, 246, 0.74);
+  --hl: #5d4f12;
+  --chip-res: #3b3060;
+  --tricky: #4b2e2c;
+  --title-glow: rgba(0, 0, 0, 0.55);
+  --coral-hover: #d4606a;
+  --heavy-bg: #4d4415;
+  --heavy-head: #6e5f12;
+
+  --butter: #6c5a14;
+  --peach: #6b4036;
+  --lilac: #4e407c;
+  --mint: #1d5b47;
+  --coral: #c24e58;
+  --pink: #6f3b5b;
+  --sky-2: #2c6a93;
+}
+:root[data-theme="dark"] .w1 { --wbg: #5b4d12; --a1: #6c5a14; --a2: #6b4036; --a3: #6f3b5b; }
+:root[data-theme="dark"] .w2 { --wbg: #1f4d6e; --a1: #2c6a93; --a2: #1d5b47; --a3: #6c5a14; }
+:root[data-theme="dark"] .w3 { --wbg: #43366f; --a1: #4e407c; --a2: #6f3b5b; --a3: #1d5b47; }
+:root[data-theme="dark"] .w4 { --wbg: #1b5441; --a1: #1d5b47; --a2: #6b4036; --a3: #2c6a93; }
+:root[data-theme="dark"] .wh { --wbg: #5a3a34; --a1: #6c5a14; --a2: #2c6a93; --a3: #4e407c; }
+
+/* things that were drawn for a light page */
+:root[data-theme="dark"] .cloud { opacity: 0.1; }
+:root[data-theme="dark"] .star { opacity: 0.9; }
+:root[data-theme="dark"] .robot,
+:root[data-theme="dark"] .cico { background: #f4f6ff; border-radius: 10px; }
+:root[data-theme="dark"] .robot { background: none; filter: drop-shadow(0 0 0 transparent) drop-shadow(0 0 14px rgba(150, 160, 255, 0.35)); }
+:root[data-theme="dark"] .k { color: #ff8fb3; }
+:root[data-theme="dark"] .s { color: #7bdc94; }
+:root[data-theme="dark"] .c { color: #9aa3c0; }
+:root[data-theme="dark"] .f { color: #74b9ff; }
+:root[data-theme="dark"] .n { color: #ffa062; }
+:root[data-theme="dark"] .pie { border-color: var(--edge); }
+:root[data-theme="dark"] img { color-scheme: light; }
+
+:root[data-theme="dark"] body:not(.ba) .badge,
+:root[data-theme="dark"] body:not(.ba) .simple > summary { background: #343a78; color: var(--ink); }
+:root[data-theme="dark"] body:not(.ba) .simple > summary::before { background: #ffd84a; }
+
+</style>
+  <style>
+/* ==========================================================
+   Week 2 additions: compact notes, progress with percentage,
+   quick checks, small interactive demos, sound button.
+   Uses only the shared theme tokens, so dark mode just works.
+   ========================================================== */
+
+/* ---------- Progress bar with percentage (inside the sticky top bar) ---------- */
+.pbar-row {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 20px 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pbar {
+  flex: 1;
+  height: 16px;
+  background: var(--surface-2);
+  border: 3px solid var(--edge);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.pbar i {
+  display: block;
+  height: 100%;
+  width: calc(var(--p, 0) * 1%);
+  background: var(--coral);
+  border-right: 3px solid var(--edge);
+  transition: width 0.12s linear;
+}
+.pbar.zero i { border-right-width: 0; }
+.pct {
+  min-width: 4ch;
+  font-family: var(--font-pixel);
+  font-size: 0.62rem;
+  line-height: 1;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Sound button (same look as the theme button) ---------- */
+.snd-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  margin: 4px 4px 4px 2px;
+  padding: 10px 12px;
+  font-family: var(--font-pixel);
+  font-size: 0.62rem;
+  line-height: 1;
+  color: var(--ink);
+  background: var(--surface);
+  border: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 -4px 0 0 var(--edge), 0 4px 0 0 var(--edge), -4px 0 0 0 var(--edge), 4px 0 0 0 var(--edge);
+  transition: translate 0.12s, background 0.12s;
+}
+.snd-toggle:hover { background: var(--butter); translate: 0 -3px; }
+.snd-toggle:active { translate: 0 2px; }
+.snd-toggle:focus-visible { outline: 4px solid var(--coral); outline-offset: 6px; }
+.snd-toggle .tt-ico { width: 14px; height: 14px; }
+.snd-toggle .waves { display: block; }
+.snd-toggle .cross { display: none; }
+.snd-toggle[aria-pressed="false"] .waves { display: none; }
+.snd-toggle[aria-pressed="false"] .cross { display: block; }
+
+/* ---------- World lead line ---------- */
+.world-lead { margin: 14px 0 0; font-weight: 500; font-size: 1.1rem; }
+.world-head .simple.slides { margin-top: 16px; }
+
+/* ---------- Topic card: notes on the left, code on the right ---------- */
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
+  gap: 20px;
+  align-items: start;
+}
+.split > * { min-width: 0; margin-top: 0 !important; }
+.split > .stack-y > * + * { margin-top: 16px; }
+.split .code { margin: 0; }
+.split .code pre { font-size: 1.4rem; }
+.body > .lead { font-size: 1.15rem; }
+.bullets.tight li { margin: 0.4em 0; }
+.bullets code { font-size: 1.2em; }
+.tip-line { display: block; margin-top: 12px; }
+
+/* ---------- "From the slides" toggle (closed by default) ---------- */
+.simple.slides { box-shadow: 3px 3px 0 var(--edge-shadow); }
+.simple.slides > summary { background: var(--surface-2); color: var(--ink); border-bottom: 3px solid var(--edge); }
+.simple.slides:not([open]) > summary { border-bottom: 0; }
+.simple.slides > summary::before { background: var(--coral); }
+.slides-body { padding: 12px 18px 14px; font-size: 1rem; }
+.slides-body .bullets li { margin: 0.3em 0; }
+.slides-body a { word-break: break-all; }
+
+/* ---------- Quick check ---------- */
+.qc {
+  padding: 12px 14px 14px;
+  background: var(--surface-2);
+  border: 3px solid var(--edge);
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 var(--edge-shadow);
+}
+.qc-q { margin: 0 0 10px; font-weight: 600; }
+.qc-tag {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 4px 8px;
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  line-height: 1;
+  background: var(--butter);
+  border: 3px solid var(--edge);
+  border-radius: 6px;
+  vertical-align: 2px;
+}
+.qc-opts { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.qc-opts button {
+  font: inherit;
+  line-height: 1.3;
+  text-align: left;
+  color: var(--ink);
+  padding: 9px 12px;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: translate 0.1s, background 0.1s;
+}
+.qc-opts button:hover:not(:disabled) { background: var(--hl); translate: 0 -2px; }
+.qc-opts button:focus-visible { outline: 4px solid var(--coral); outline-offset: 2px; }
+.qc-opts button:disabled { cursor: default; opacity: 1; }
+.qc-opts button.ok { background: var(--mint); }
+.qc-opts button.no { background: var(--coral); animation: shake 0.3s; }
+.qc-opts code { font-size: 1.15em; }
+.qc-fb { margin: 10px 0 0; font-weight: 500; }
+.qc-fb b { font-weight: 700; }
+.qc-fb .retry {
+  font: inherit;
+  margin-left: 6px;
+  padding: 0 8px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 2px solid var(--edge);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.qc-fb .retry:hover { background: var(--butter); }
+@keyframes shake { 25% { translate: -4px 0; } 75% { translate: 4px 0; } }
+
+/* ---------- Small buttons used inside the demos ---------- */
+button.btn { border: 0; cursor: pointer; }
+.btn.sm { font-size: 0.58rem; padding: 9px 11px; }
+.btn:disabled { opacity: 0.45; cursor: default; translate: 0 0; background: var(--surface); }
+.btn:focus-visible { outline: 4px solid var(--coral); outline-offset: 6px; }
+
+/* ---------- Demo frame ---------- */
+.demo {
+  padding: 14px;
+  background: var(--tint);
+  border: 3px solid var(--edge);
+  border-radius: 16px;
+}
+.demo-h {
+  margin: 0 0 10px;
+  font-family: var(--font-pixel);
+  font-size: 0.6rem;
+  line-height: 1.5;
+  font-weight: 400;
+}
+.demo-note { margin: 12px 0 0; min-height: 3.1em; font-weight: 500; }
+
+/* ---------- Stack / event-loop stepper ---------- */
+.sim-wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 14px; align-items: start; }
+.sim-code {
+  margin: 0;
+  padding: 10px 6px;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 12px;
+  font-family: var(--font-code);
+  font-size: 1.35rem;
+  line-height: 1.25;
+  overflow-x: auto;
+}
+.sim-code .ln { display: block; padding: 0 10px; border-left: 6px solid transparent; white-space: pre; }
+.sim-code .ln.on { background: var(--hl); border-left-color: var(--coral); }
+.sim-board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; }
+.sim-col > b {
+  display: block;
+  margin-bottom: 6px;
+  font-family: var(--font-pixel);
+  font-size: 0.5rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+.well {
+  min-height: 168px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column-reverse;   /* first item at the bottom: a stack */
+  justify-content: flex-start;
+  gap: 6px;
+  background: var(--surface);
+  border: 3px dashed var(--edge);
+  border-radius: 10px;
+}
+.well.queue { flex-direction: column; }
+.well.out { flex-direction: column; background: var(--surface-2); border-style: solid; }
+.blk {
+  padding: 6px 8px;
+  font-family: var(--font-code);
+  font-size: 1.25rem;
+  line-height: 1;
+  background: var(--a1);
+  border: 3px solid var(--edge);
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+  animation: pop 0.18s ease-out;
+}
+.blk.top { background: var(--coral); }
+.well.queue .blk { background: var(--a2); }
+.well.out .blk { background: transparent; border: 0; padding: 2px 4px; animation: none; }
+@keyframes pop { from { scale: 0.7; opacity: 0.2; } to { scale: 1; opacity: 1; } }
+.sim-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 12px; }
+.sim-count { margin-left: auto; font-family: var(--font-pixel); font-size: 0.55rem; }
+
+/* ---------- map / filter / find lab ---------- */
+.lab-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.lab-row + .lab-row { margin-top: 10px; }
+.lab-arr, .lab-res {
+  display: inline-block;
+  padding: 4px 10px;
+  font-family: var(--font-code);
+  font-size: 1.4rem;
+  line-height: 1.1;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 8px;
+}
+.lab-res { background: var(--mint); }
+.lab-code { margin: 10px 0 0; padding: 8px 12px; font-family: var(--font-code); font-size: 1.4rem; line-height: 1.2;
+  background: var(--surface); border: 3px solid var(--edge); border-radius: 10px; overflow-x: auto; white-space: pre; }
+
+/* ---------- JSON lab ---------- */
+.jl-in {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 12px;
+  font-family: var(--font-code);
+  font-size: 1.35rem;
+  line-height: 1.2;
+  color: var(--ink);
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 10px;
+  resize: vertical;
+}
+.jl-in:focus-visible { outline: 4px solid var(--coral); outline-offset: 2px; }
+.jl-out { margin: 12px 0 0; padding: 10px 12px; font-weight: 600; border: 3px solid var(--edge); border-radius: 12px; background: var(--surface); }
+.jl-out.ok { background: var(--mint); }
+.jl-out.bad { background: var(--coral); }
+.jl-out pre { margin: 8px 0 0; font-family: var(--font-code); font-size: 1.3rem; line-height: 1.15; font-weight: 400; overflow-x: auto; }
+.jl-rules { margin: 10px 0 0; font-size: 0.95rem; font-weight: 500; }
+
+/* ---------- Table in a card ---------- */
+.body > .tbl-wrap { margin-top: 0; }
+
+/* ---------- Footer score ---------- */
+.score {
+  display: inline-block;
+  margin: 8px 0 14px;
+  padding: 8px 14px;
+  font-family: var(--font-pixel);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 10px;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 860px) {
+  .split, .sim-wrap { grid-template-columns: 1fr; }
+}
+@media (max-width: 680px) {
+  .pbar-row { padding: 0 14px 8px; }
+  .snd-toggle .tt-label { display: none; }
+  .snd-toggle { padding: 10px; }
+  .qc-opts { grid-template-columns: 1fr; }
+  .sim-board { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
+  .split .code pre { font-size: 1.2rem; }
+  .sim-code { font-size: 1.2rem; }
+  .lab-code, .jl-in { font-size: 1.2rem; }
+  .well { min-height: 128px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blk, .qc-opts button.no { animation: none; }
+  .pbar i { transition: none; }
+}
+
+.btn.go.sm { font-size: 0.62rem; padding: 12px 16px; }
+
+/* ---------- Week 1 additions ---------- */
+/* topic with no code: bullets span the card in two columns */
+.solo > ul { columns: 2 22em; column-gap: 32px; }
+.solo > ul > li { break-inside: avoid; }
+
+/* pick-one demos */
+.btn.sel { background: var(--butter); translate: 0 2px; }
+.lab-res { min-width: 3ch; }
+.lab-res.err { background: var(--coral); }
+.lab-res.warn { background: var(--butter); }
+.lab-code:empty::before { content: "// pick one above"; opacity: 0.6; }
+
+/* name checker and live DOM demo */
+.dom-in {
+  flex: 1 1 12em;
+  min-width: 0;
+  padding: 8px 12px;
+  font-family: var(--font-code);
+  font-size: 1.35rem;
+  line-height: 1.2;
+  color: var(--ink);
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 10px;
+}
+.dom-in:focus-visible { outline: 4px solid var(--coral); outline-offset: 2px; }
+.dom-out { margin: 12px 0 0; min-height: 2.2em; font-size: 1.25rem; font-weight: 600; }
+.id-out { margin-top: 10px; }
+.jl-out.warn { background: var(--butter); }
+.words { margin: 10px 0 0; font-family: var(--font-code); font-size: 1.2rem; line-height: 1.35; }
+.words b { font-family: var(--font-pixel); font-size: 0.5rem; font-weight: 400; margin-right: 6px; }
+@media (max-width: 680px) { .dom-in { font-size: 1.2rem; } }
+
+/* ---------- "Why it matters" line under the lead ---------- */
+.why { margin: 8px 0 14px; font-size: 1.02rem; line-height: 1.45; }
+.why-tag {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 4px 8px;
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  line-height: 1;
+  background: var(--mint);
+  border: 3px solid var(--edge);
+  border-radius: 6px;
+  vertical-align: 2px;
+}
+
+/* ---------- Tic-Tac-Toe ---------- */
+.ttt-wrap { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: start; }
+.ttt-board { display: grid; grid-template-columns: repeat(3, 68px); gap: 6px; }
+.ttt-cell {
+  width: 68px; height: 68px;
+  font-family: var(--font-pixel);
+  font-size: 1.2rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: translate 0.1s, background 0.1s;
+}
+.ttt-cell:hover:not(.x):not(.o) { background: var(--hl); translate: 0 -2px; }
+.ttt-cell:focus-visible { outline: 4px solid var(--coral); outline-offset: 2px; }
+.ttt-cell.x { background: var(--peach); }
+.ttt-cell.o { background: var(--a1); }
+.ttt-cell.win { background: var(--mint); }
+.ttt-state { margin: 0; white-space: pre; overflow-x: auto; font-size: 1.2rem; }
+.ttt-side .demo-note { min-height: 3.1em; }
+@media (max-width: 680px) { .ttt-wrap { grid-template-columns: 1fr; } }
+
+/* ---------- Vue demos ---------- */
+.two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.col-box { padding: 10px 12px; background: var(--surface); border: 3px solid var(--edge); border-radius: 12px; min-width: 0; }
+.col-box > b {
+  display: block; margin-bottom: 8px;
+  font-family: var(--font-pixel); font-size: 0.55rem; font-weight: 400; line-height: 1.5;
+}
+.col-box .dom-in { display: block; width: 100%; box-sizing: border-box; }
+.col-box .btn { margin-top: 10px; }
+.b-line { margin: 8px 0 0; font-family: var(--font-code); font-size: 1.35rem; line-height: 1.2; overflow-wrap: anywhere; }
+.chk { display: inline-flex; align-items: center; gap: 8px; margin-right: 14px; font-weight: 600; cursor: pointer; }
+.chk input { width: 20px; height: 20px; accent-color: var(--coral); cursor: pointer; }
+.cb-box {
+  margin-top: 10px; padding: 14px; text-align: center; font-weight: 600;
+  background: var(--surface); border: 3px dashed var(--edge); border-radius: 12px;
+}
+.cb-box.active { border-style: solid; background: var(--mint); }
+.cb-box.text-danger { border-style: solid; background: var(--coral); }
+.cb-box.active.text-danger { background: linear-gradient(90deg, var(--mint) 50%, var(--coral) 50%); }
+.cb-out { margin-top: 10px; white-space: pre; overflow-x: auto; }
+.is-host { min-height: 58px; padding: 6px; border: 3px dashed var(--edge); border-radius: 10px; }
+.is-box { padding: 10px; font-weight: 600; background: var(--a1); border: 3px solid var(--edge); border-radius: 8px; }
+.is-show { background: var(--a2); }
+.is-read { margin: 8px 0 0; font-family: var(--font-code); font-size: 1.25rem; line-height: 1.2; }
+.k-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.k-row { display: flex; align-items: center; gap: 10px; }
+.k-label { flex: 0 0 5.5em; font-weight: 600; }
+.k-row .dom-in { flex: 1 1 8em; }
+.stat { font-family: var(--font-pixel); font-size: 0.6rem; line-height: 1.6; }
+.stat b { font-size: 0.8rem; }
+.r-view { margin: 10px 0 0; padding: 10px 12px; font-family: var(--font-code); font-size: 1.5rem; background: var(--mint); border: 3px solid var(--edge); border-radius: 10px; }
+.r-log { min-height: 11.5em; margin-top: 0; white-space: pre; overflow-x: auto; }
+@media (max-width: 680px) { .two-col { grid-template-columns: 1fr; } }
+
+/* nested list inside a bullet */
+.bullets.tight li > .bullets.sub { margin-top: 4px; }
+.bullets.tight li > .bullets.sub li { margin: 0.2em 0; }
+
+</style>
+  <script>
+/* MAD-II notes - light / dark theme switch.
+   Runs in <head> so the saved theme is applied before the page paints (no flash). */
+(function () {
+  var root = document.documentElement;
+  var KEY = "mad2-theme";
+
+  function saved() {
+    try { return localStorage.getItem(KEY); } catch (e) { return null; }
+  }
+  function apply(theme) { root.setAttribute("data-theme", theme); }
+
+  apply(saved() === "dark" ? "dark" : "light");
+
+  document.addEventListener("DOMContentLoaded", function () {
+    var buttons = document.querySelectorAll(".theme-toggle");
+
+    function sync() {
+      var dark = root.getAttribute("data-theme") === "dark";
+      buttons.forEach(function (b) {
+        b.setAttribute("aria-pressed", dark ? "true" : "false");
+        b.setAttribute("aria-label", dark ? "Switch to light theme" : "Switch to dark theme");
+        var label = b.querySelector(".tt-label");
+        if (label) label.textContent = dark ? "Light" : "Dark";
+      });
+    }
+
+    buttons.forEach(function (b) {
+      b.addEventListener("click", function () {
+        var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+        apply(next);
+        try { localStorage.setItem(KEY, next); } catch (e) {}
+        sync();
+      });
+    });
+    sync();
+  });
+})();
+
+</script>
+</head>
+<body>
+
+<!-- Pixel sprites reused across the page -->
+<svg class="sprites" aria-hidden="true" focusable="false">
+  <symbol id="cloud" viewBox="0 0 16 4">
+    <path fill="#ffffff" d="M3 0h3v1H3z M8 0h4v1H8z M2 1h11v1H2z M1 2h14v1H1z M0 3h16v1H0z"/>
+    <path fill="#d4ecfb" d="M0 3h16v1H0z"/>
+  </symbol>
+  <symbol id="star" viewBox="0 0 5 5">
+    <path fill="#ffc233" d="M2 0h1v5H2z M0 2h5v1H0z"/>
+    <path fill="#fff6c8" d="M2 2h1v1H2z"/>
+  </symbol>
+</svg>
+
+<div class="sky" aria-hidden="true">
+  <svg class="cloud c1"><use href="#cloud"/></svg>
+  <svg class="cloud c2"><use href="#cloud"/></svg>
+  <svg class="cloud c3"><use href="#cloud"/></svg>
+  <svg class="cloud c4"><use href="#cloud"/></svg>
+</div>
+
+<header class="hud">
+  <div class="hud-inner">
+    <a class="brand" href="#top">
+      <svg class="brand-star" aria-hidden="true"><use href="#star"/></svg>
+      <abbr title="Modern Application Development - II">MAD-II</abbr>
+    </a>
+    <nav aria-label="Worlds">
+      <a class="hub-link" href="index.html">&lt; Weeks</a>
+      <a href="#world-1">1 Rendering</a>
+      <a href="#world-2">2 ViewModel</a>
+      <a href="#world-3">3 Components</a>
+      <a href="#world-4">4 Reactivity</a>
+    </nav>
+    <button class="snd-toggle" id="snd" type="button" aria-pressed="true" aria-label="Sound effects on. Press to mute"><svg class="tt-ico" viewBox="0 0 12 12" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" d="M1 4h2v4H1zM3 3h1v6H3zM4 2h1v8H4z"/><path class="waves" fill="currentColor" d="M6 4h1v4H6zM8 2h1v8H8zM10 3h1v6h-1z"/><path class="cross" fill="currentColor" d="M6 4h1v1H6zM7 5h1v1H7zM8 6h1v1H8zM9 7h1v1H9zM9 4h1v1H9zM8 5h1v1H8zM6 7h1v1H6z"/></svg><span class="tt-label">Sound</span></button>
+    <button class="theme-toggle" type="button" aria-pressed="false" aria-label="Switch to dark theme">
+      <svg class="tt-ico tt-moon" viewBox="0 0 12 12" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" d="M3 1h2v1h-2zM2 2h2v1h-2zM1 3h3v1h-3zM0 4h4v1h-4zM0 5h4v1h-4zM0 6h4v1h-4zM0 7h5v1h-5zM1 8h6v1h-6zM1 9h9v1h-9zM2 10h7v1h-7zM5 11h2v1h-2z"/></svg>
+      <svg class="tt-ico tt-sun" viewBox="0 0 12 12" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" d="M5 0h2v1h-2zM5 1h2v1h-2zM2 2h1v1h-1zM9 2h1v1h-1zM5 3h2v1h-2zM4 4h4v1h-4zM0 5h2v1h-2zM3 5h6v1h-6zM10 5h2v1h-2zM0 6h2v1h-2zM3 6h6v1h-6zM10 6h2v1h-2zM4 7h4v1h-4zM5 8h2v1h-2zM2 9h1v1h-1zM9 9h1v1h-1zM5 10h2v1h-2zM5 11h2v1h-2z"/></svg>
+      <span class="tt-label">Dark</span>
+    </button>
+  </div>
+
+  <div class="pbar-row"><div class="pbar zero" role="progressbar" aria-label="Reading progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div><span class="pct" id="pct" aria-hidden="true">0%</span></div>
+</header>
+
+<main>
+
+  <section class="hero" id="top">
+    <svg class="star st1" aria-hidden="true"><use href="#star"/></svg>
+    <svg class="star st2" aria-hidden="true"><use href="#star"/></svg>
+    <svg class="star st3" aria-hidden="true"><use href="#star"/></svg>
+
+    <div class="hero-text">
+      <p class="eyebrow">Modern Application Development - II</p>
+      <h1 class="title">
+        <span style="--i:0;--c:#ff7b7b">Week</span>
+        <span style="--i:1;--c:#ffd23f">4</span>
+      </h1>
+      <p class="lede">Vue: declarative rendering, ViewModel, components, and how reactivity works.</p>
+      <p><a class="btn go" href="#world-1">Start reading</a></p>
+      <ul class="world-links">
+        <li><a href="#world-1">World 1: Declarative Rendering</a></li>
+        <li><a href="#world-2">World 2: ViewModel</a></li>
+        <li><a href="#world-3">World 3: Components</a></li>
+        <li><a href="#world-4">World 4: Reactivity Inside</a></li>
+      </ul>
+    </div>
+
+    <div class="mascot">
+      <p class="bubble">Let's Vue!</p>
+      <svg class="robot" viewBox="0 0 12 12" role="img" aria-label="A friendly pixel robot" shape-rendering="crispEdges">
+        <rect x="5" y="0" width="2" height="1" fill="#ff7b7b"/>
+        <rect x="2" y="3" width="8" height="7" fill="#8ecae6"/>
+        <path fill="#2b2d42" d="M5 1h2v1H5z M2 2h8v1H2z M1 3h1v7H1z M10 3h1v7h-1z M2 10h8v1H2z M3 4h2v2H3z M7 4h2v2H7z M4 8h1v1H4z M7 8h1v1H7z M5 9h2v1H5z M3 11h2v1H3z M7 11h2v1H7z"/>
+        <path fill="#ffffff" d="M3 4h1v1H3z M7 4h1v1H7z"/>
+        <path fill="#ffb3d1" d="M3 7h1v1H3z M8 7h1v1H8z"/>
+      </svg>
+    </div>
+  </section>
+
+<section class="world w1" id="world-1">
+<header class="world-head"><div class="world-title"><span class="badge">World 1</span><h2>Declarative Rendering</h2></div><p class="world-lead">Describe the page from your data. Vue keeps it up to date.</p><details class="simple slides"><summary>Slide agenda</summary><div class="slides-body"><ul class="bullets"><li>Reactivity</li><li>Directives</li><li>Event handling</li><li>Class and Style binding</li><li>Lists and Loops</li></ul></div></details></header>
+<div class="grid">
+<article class="slide s-12" id="t-reactivity">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">⚡</span>Reactivity</h3><span class="no" title="Topic 1">01</span></header>
+<div class="body">
+<p class="lead">Change the data and the screen updates itself.</p>
+<p class="why"><span class="why-tag">Why</span>Without it you hand-write DOM updates for every change. With it you describe the page once.</p>
+<div class="split"><ul class="bullets tight"><li><b>Reactivity</b>: the page auto-updates in response to changes in data.</li><li>A <b>binding</b> links the model (data) to the view (display). Change one side and the other follows.</li><li>Focus on <b>what</b> should be shown, not <b>how</b> to update it.</li><li><b>Why?</b> User interaction is fundamentally reactive: respond to changes in input. One change can need many screen updates.</li><li>Example: the user logs in. Navigation adds the logged-in links, the course list updates, colours follow the theme. All from one change of data.</li></ul><div class="stack-y"><figure class="code" data-lang="html"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>index.html</figcaption><pre><code><span class="k">&lt;script src=<span class="s">"https://unpkg.com/vue@3/dist/vue.global.js"</span>&gt;</span><span class="k">&lt;/script&gt;</span>
+
+<span class="k">&lt;div id=<span class="s">"app"</span>&gt;</span>
+  <span class="k">&lt;p&gt;</span><span class="f">{{ message }}</span><span class="k">&lt;/p&gt;</span>
+  <span class="k">&lt;button @click=<span class="s">"message = 'Changed!'"</span>&gt;</span>Change<span class="k">&lt;/button&gt;</span>
+<span class="k">&lt;/div&gt;</span></code></pre></figure><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>app.js</figcaption><pre><code>Vue.<span class="f">createApp</span>({
+  <span class="f">data</span>() {
+    <span class="k">return</span> { message: <span class="s">"Hello Vue"</span> };
+  },
+}).<span class="f">mount</span>(<span class="s">"#app"</span>);
+<span class="c">// Click the button: message changes, the &lt;p&gt; updates.</span>
+<span class="c">// No DOM code was written.</span>
+<span class="c">// Vue 2 wrote: new Vue({ el: "#app",</span>
+<span class="c">//                        data: { message: "Hello Vue" } })</span></code></pre></figure></div></div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><ul class="bullets"><li>Auto-update in response to changes in data</li><li>Binding between model (data) and view (display)</li></ul><p>Focus on <b>What</b> instead of <b>How</b></p><p><b>Why?</b></p><ul class="bullets"><li>User interaction is fundamentally reactive<ul><li>Respond to changes in input</li></ul></li><li>Change in one parameter may need multiple updates on screen<ul><li>User logs in</li><li>Update navigation: add logged in links</li><li>Update displayed list of courses</li><li>Change colours based on theme</li></ul></li></ul></div></details>
+<div class="qc" data-ans="c"><p class="qc-q"><span class="qc-tag">Quick check</span>In a reactive framework like Vue, what happens to the page when the data changes?</p><div class="qc-opts"><button type="button" data-k="a">You must update each element by hand</button><button type="button" data-k="b">The page reloads from the server</button><button type="button" data-k="c">The page updates automatically</button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden>That is reactivity: the binding between data and view keeps the screen in step.</div></div>
+</div></article>
+<article class="slide s-12" id="t-before">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">🕰️</span>How did we do it before?</h3><span class="no" title="Topic 2">02</span></header>
+<div class="body">
+<p class="lead">Two older ways to keep the screen in step with the state.</p>
+<p class="why"><span class="why-tag">Why</span>Seeing the old ways shows exactly what Vue removes: all the manual bookkeeping.</p>
+<div class="split"><ul class="bullets tight"><li><b>Server tracks the state</b> (is the user logged in? what is the date and time?).</li><li><b>Server responds with complete HTML</b> built from the present state: different layouts, visibility in views, rendered for each user. Fully server-side.</li><li><b>Client JS</b>: a login controller retrieves the user model. Client-side JS goes through each element and updates it as needed (jQuery, vanilla JS).</li><li>Server-side costs a full page per change. Client JS means you must find and update every affected element yourself, and forgetting one leaves stale data on screen.</li></ul><div class="stack-y"><figure class="code" data-lang="html"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>page.html</figcaption><pre><code><span class="c">&lt;!-- Server side (Flask + Jinja) decides the HTML --&gt;</span>
+<span class="f">{% if user %}</span>
+  <span class="k">&lt;a href=<span class="s">"/logout"</span>&gt;</span>Log out <span class="f">{{ user.name }}</span><span class="k">&lt;/a&gt;</span>
+<span class="f">{% else %}</span>
+  <span class="k">&lt;a href=<span class="s">"/login"</span>&gt;</span>Log in<span class="k">&lt;/a&gt;</span>
+<span class="f">{% endif %}</span></code></pre></figure><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>onLogin.js</figcaption><pre><code><span class="c">// Client JS: you update every affected element by hand</span>
+<span class="k">function</span> <span class="f">onLogin</span>(user) {
+  document.<span class="f">getElementById</span>(<span class="s">"greeting"</span>).textContent = <span class="s">"Hi "</span> + user.name;
+  document.<span class="f">getElementById</span>(<span class="s">"login-link"</span>).style.display = <span class="s">"none"</span>;
+  document.<span class="f">getElementById</span>(<span class="s">"logout-link"</span>).style.display = <span class="s">"inline"</span>;
+  document.<span class="f">getElementById</span>(<span class="s">"courses"</span>).innerHTML = <span class="f">renderCourses</span>(user);
+  document.body.className = user.theme;
+}</code></pre></figure></div></div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><ul class="bullets"><li>Server tracks <i>state</i><ul><li>user logged in?</li><li>date/time?</li></ul></li><li>Server responds with complete HTML based on present state<ul><li>Capture different layouts, visibility in views</li><li>Render appropriately for each user</li><li>Fully server-side</li></ul></li><li>Client-JS<ul><li>Login controller retrieves user model</li><li>Client side JS goes through each element and updates as needed (jQuery, vanilla JS)</li></ul></li></ul></div></details>
+<div class="qc" data-ans="a"><p class="qc-q"><span class="qc-tag">Quick check</span>With plain client-side JS, who finds and updates each affected element?</p><div class="qc-opts"><button type="button" data-k="a">Your own code, by hand</button><button type="button" data-k="b">The browser, automatically</button><button type="button" data-k="c">The server</button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden>That bookkeeping is exactly what Vue's reactivity takes over.</div></div>
+</div></article>
+<article class="slide s-12" id="t-directives">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">🧷</span>Directives and events</h3><span class="no" title="Topic 3">03</span></header>
+<div class="body">
+<p class="lead">Special attributes that link HTML to your data and your events.</p>
+<p class="why"><span class="why-tag">Why</span>Directives are how a Vue template says “show this”, “keep this in sync” and “do that on click” with no DOM code.</p>
+<div class="split"><ul class="bullets tight"><li>A <b>directive</b> is a special attribute that starts with <code>v-</code>. <code>{{ }}</code> shows a value as text.</li><li><code>v-bind</code> (short <code>:</code>): <b>one-way</b> binding. Update the variable and the display changes. Typing into the element does <b>not</b> change the variable.</li><li><code>v-model</code>: <b>two-way</b> binding for inputs, checkboxes etc. (form data). Edit either side and the other follows.</li><li><code>v-on</code> (short <code>@</code>): <b>event binding</b>. Run code when something happens: click, input, submit.</li><li><span class="sticker warn">v-model is for form inputs. For a plain attribute like href or src, use v-bind</span></li></ul><div class="stack-y"><figure class="code" data-lang="html"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>template.html</figcaption><pre><code><span class="k">&lt;div id=<span class="s">"app"</span>&gt;</span>
+  <span class="c">&lt;!-- shows the value --&gt;</span>
+  <span class="k">&lt;p&gt;</span><span class="f">{{ name }}</span><span class="k">&lt;/p&gt;</span>
+  <span class="c">&lt;!-- one-way. Short form  :href="link" --&gt;</span>
+  <span class="k">&lt;a v-bind:href=<span class="s">"link"</span>&gt;</span>Docs<span class="k">&lt;/a&gt;</span>
+  <span class="c">&lt;!-- two-way: typing changes name --&gt;</span>
+  <span class="k">&lt;input v-model=<span class="s">"name"</span>&gt;</span>
+  <span class="c">&lt;!-- event. Short form  @click="count++" --&gt;</span>
+  <span class="k">&lt;button v-on:click=<span class="s">"count++"</span>&gt;</span>Add<span class="k">&lt;/button&gt;</span>
+  <span class="k">&lt;p&gt;</span>Clicked <span class="f">{{ count }}</span> times<span class="k">&lt;/p&gt;</span>
+<span class="k">&lt;/div&gt;</span></code></pre></figure><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>app.js</figcaption><pre><code>Vue.<span class="f">createApp</span>({
+  <span class="f">data</span>() {
+    <span class="k">return</span> { name: <span class="s">"Asha"</span>, link: <span class="s">"https://vuejs.org"</span>, count: <span class="n">0</span> };
+  },
+}).<span class="f">mount</span>(<span class="s">"#app"</span>);</code></pre></figure></div></div>
+<div class="demo" data-lab="bind">
+  <h4 class="demo-h">Try it: one-way vs two-way</h4>
+  <div class="two-col">
+    <div class="col-box" data-mode="one"><b>v-bind (one-way)</b>
+      <input class="dom-in" type="text" aria-label="One-way input">
+      <p class="b-line">name = <span class="b-out"></span></p>
+      <button type="button" class="btn sm">name = "Ravi" in code</button></div>
+    <div class="col-box" data-mode="two"><b>v-model (two-way)</b>
+      <input class="dom-in" type="text" aria-label="Two-way input">
+      <p class="b-line">name = <span class="b-out"></span></p>
+      <button type="button" class="btn sm">name = "Ravi" in code</button></div>
+  </div>
+  <p class="demo-note" aria-live="polite">Type in each box and watch the name line.</p>
+</div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><ul class="bullets"><li>v-bind: one way binding - update variable, reflects on display<ul><li>v-model: two way binding - inputs, checkboxes etc: form data</li></ul></li><li>v-on: event binding</li></ul></div></details>
+<div class="qc" data-ans="b"><p class="qc-q"><span class="qc-tag">Quick check</span>Which directive gives <b>two-way</b> binding for a form input?</p><div class="qc-opts"><button type="button" data-k="a"><code>v-bind</code></button><button type="button" data-k="b"><code>v-model</code></button><button type="button" data-k="c"><code>v-on</code></button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden><code>v-model</code> syncs both ways. <code>v-bind</code> is one-way and <code>v-on</code> handles events.</div></div>
+</div></article>
+<article class="slide s-12" id="t-classbind">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">🎨</span>Class and style binding</h3><span class="no" title="Topic 4">04</span></header>
+<div class="body">
+<p class="lead">Switch CSS classes on and off from data.</p>
+<p class="why"><span class="why-tag">Why</span>Instead of adding and removing class names in JS, you say which classes apply for the current data.</p>
+<div class="split"><ul class="bullets tight"><li>Dynamically change an element's class with <code>:class</code> (short for <code>v-bind:class</code>).</li><li>Special support for an <b>object</b>: <code>{ className: condition }</code>. Several classes can be attached at once, based on the key-values.</li><li>If the value for a key is <b>true</b>, that key is applied as a class (or style). If it is false, it is left out.</li><li><code>:style</code> works the same way, with CSS properties as keys.</li><li>A plain <code>class="…"</code> can sit beside <code>:class</code>. Vue merges them.</li></ul><div class="stack-y"><figure class="code" data-lang="html"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>class.html</figcaption><pre><code><span class="k">&lt;div class=<span class="s">"box"</span>
+     :class=<span class="s">"{ active: isActive, 'text-danger': hasError }"</span>&gt;</span>
+  Hello
+<span class="k">&lt;/div&gt;</span>
+<span class="c">&lt;!-- isActive true, hasError false -&gt; class="box active" --&gt;</span>
+
+<span class="k">&lt;p :style=<span class="s">"{ color: textColor,
+             fontSize: size + 'px' }"</span>&gt;</span>Styled<span class="k">&lt;/p&gt;</span></code></pre></figure><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>data.js</figcaption><pre><code><span class="f">data</span>() {
+  <span class="k">return</span> {
+    isActive: <span class="k">true</span>,
+    hasError: <span class="k">false</span>,
+    textColor: <span class="s">"tomato"</span>,
+    size: <span class="n">18</span>,
+  };
+}</code></pre></figure></div></div>
+<div class="demo" data-lab="classbind">
+  <h4 class="demo-h">Try it: class binding</h4>
+  <div class="lab-row"><label class="chk"><input type="checkbox" data-k="active" checked> isActive</label><label class="chk"><input type="checkbox" data-k="text-danger"> hasError</label></div>
+  <div class="cb-box" aria-hidden="true">The element</div>
+  <pre class="lab-code cb-out" aria-live="polite"></pre>
+</div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><ul class="bullets"><li>Dynamically modify class of an element</li><li>Special support for bind - object</li><li>Multiple classes attached based on key-values<ul><li>If value for a given key is true, that key is applied as a class or style</li></ul></li></ul></div></details>
+<div class="qc" data-ans="a"><p class="qc-q"><span class="qc-tag">Quick check</span><code>:class="{ active: isActive, 'text-danger': hasError }"</code> with <code>isActive = true</code> and <code>hasError = false</code>. Which classes apply?</p><div class="qc-opts"><button type="button" data-k="a"><code>active</code></button><button type="button" data-k="b"><code>active</code> and <code>text-danger</code></button><button type="button" data-k="c"><code>text-danger</code></button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden>Only keys whose value is true are applied. <code>hasError</code> is false, so <code>text-danger</code> is left out.</div></div>
+</div></article>
+<article class="slide s-12" id="t-cond">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">👁️</span>Conditional rendering</h3><span class="no" title="Topic 5">05</span></header>
+<div class="body">
+<p class="lead">v-if and v-show both hide things. They are not the same.</p>
+<p class="why"><span class="why-tag">Why</span>A favourite exam question. The difference is whether the element still exists in the DOM.</p>
+<div class="split"><ul class="bullets tight"><li><code>v-if="argument"</code>: what follows is shown when the argument is true. It is JS-based and <b>changes the DOM</b>: the element is added or removed.</li><li><code>v-show="param"</code>: shown only if the parameter is true, but it is <b>always rendered and present in the DOM</b>. Only the CSS <code>display</code> property changes.</li><li>Use <code>v-show</code> for things you switch often (a cheap toggle). Use <code>v-if</code> when it is rarely shown or should not exist at all.</li></ul><div class="stack-y"><figure class="code" data-lang="html"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>cond.html</figcaption><pre><code><span class="c">&lt;!-- removed from the DOM when false --&gt;</span>
+<span class="k">&lt;p v-if=<span class="s">"loggedIn"</span>&gt;</span>Welcome back!<span class="k">&lt;/p&gt;</span>
+
+<span class="c">&lt;!-- stays in the DOM: display:none when false --&gt;</span>
+<span class="k">&lt;p v-show=<span class="s">"loggedIn"</span>&gt;</span>Welcome back!<span class="k">&lt;/p&gt;</span></code></pre></figure></div></div>
+<div class="demo" data-lab="ifshow">
+  <h4 class="demo-h">Try it: v-if vs v-show</h4>
+  <div class="lab-row"><label class="chk"><input type="checkbox" checked> condition is true</label></div>
+  <div class="two-col" style="margin-top:10px">
+    <div class="col-box"><b>v-if</b><div class="is-host"></div><p class="is-read r-if" aria-live="polite"></p></div>
+    <div class="col-box"><b>v-show</b><div class="is-host"><div class="is-box is-show">v-show box</div></div><p class="is-read r-show" aria-live="polite"></p></div>
+  </div>
+</div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><ul class="bullets"><li><code>v-if="argument"</code><ul><li>what follows is shown when argument evaluates to true</li><li>JS based - changes DOM</li></ul></li><li><code>v-show="param"</code><ul><li>only if the show parameter evaluates to true</li><li>always rendered and present in DOM - only CSS display parameter changed</li></ul></li></ul></div></details>
+<div class="qc" data-ans="c"><p class="qc-q"><span class="qc-tag">Quick check</span>An element has <code>v-show="false"</code>. What happens to it?</p><div class="qc-opts"><button type="button" data-k="a">It is removed from the DOM</button><button type="button" data-k="b">An error is thrown</button><button type="button" data-k="c">It stays in the DOM with <code>display: none</code></button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden><code>v-show</code> only changes CSS. <code>v-if</code> is the one that removes the element.</div></div>
+</div></article>
+<article class="slide s-12" id="t-vfor">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">🔁</span>Looping: v-for</h3><span class="no" title="Topic 6">06</span></header>
+<div class="body">
+<p class="lead">Repeat an element for every item in a list or object.</p>
+<p class="why"><span class="why-tag">Why</span>Like a Jinja for-loop, but the list stays live: add an item to the data and a new row appears.</p>
+<div class="split"><ul class="bullets tight"><li>Iterate over any JS iterable: array, object, string. Usage is similar to Jinja <code>{{ }}</code> templates.</li><li><code>v-for="item in items"</code>: <b>items</b> is an array.</li><li><code>v-for="value in obj"</code>: <b>obj</b> is an object (you get each value).</li><li><code>v-for="(value, name) in obj"</code>: <b>name</b> is the object's key. It is called name because <b>key</b> has another meaning in v-for (next card).</li><li><code>v-for="(value, name, index) in obj"</code>: <b>index</b> is the numerical position.</li></ul><div class="stack-y"><figure class="code" data-lang="html"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>for.html</figcaption><pre><code><span class="c">&lt;!-- array --&gt;</span>
+<span class="k">&lt;ul&gt;</span>
+  <span class="k">&lt;li v-for=<span class="s">"course in courses"</span>&gt;</span><span class="f">{{ course }}</span><span class="k">&lt;/li&gt;</span>
+<span class="k">&lt;/ul&gt;</span>
+<span class="c">&lt;!-- object: value, name (the key), index --&gt;</span>
+<span class="k">&lt;ul&gt;</span>
+  <span class="k">&lt;li v-for=<span class="s">"(value, name, index) in student"</span>&gt;</span>
+    <span class="f">{{ index }}</span>. <span class="f">{{ name }}</span>: <span class="f">{{ value }}</span>
+  <span class="k">&lt;/li&gt;</span>
+<span class="k">&lt;/ul&gt;</span></code></pre></figure><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>data.js</figcaption><pre><code><span class="f">data</span>() {
+  <span class="k">return</span> {
+    courses: [<span class="s">"MAD-I"</span>, <span class="s">"MAD-II"</span>, <span class="s">"MLT"</span>],
+    student: { name: <span class="s">"Asha"</span>, marks: <span class="n">90</span> },
+  };
+}
+<span class="c">// student rows:   0. name: Asha     1. marks: 90</span></code></pre></figure></div></div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><ul class="bullets"><li>Iterate over any JS iterable<ul><li>Array, Object, String etc.</li></ul></li><li>Usage similar to Jinja {{}} templates</li><li>Examples:<ul><li><code>v-for="item in items"</code> // items is an array</li><li><code>v-for="value in obj"</code> // obj is an object</li><li><code>v-for="(value, name) in obj"</code> // name -&gt; key: “key” has another meaning in v-for</li><li><code>v-for="(value, name, index) in obj"</code> // index -&gt; numerical index</li></ul></li></ul></div></details>
+<div class="qc" data-ans="b"><p class="qc-q"><span class="qc-tag">Quick check</span><code>v-for="(value, name) in obj"</code> with <code>obj = { a: 1 }</code>. What is <code>name</code>?</p><div class="qc-opts"><button type="button" data-k="a"><code>1</code></button><button type="button" data-k="b"><code>"a"</code></button><button type="button" data-k="c"><code>0</code></button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden>With two names, the second one is the object's key. <code>value</code> is 1.</div></div>
+</div></article>
+<article class="slide s-12" id="t-keys">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">🔑</span>Loop keys</h3><span class="no" title="Topic 7">07</span></header>
+<div class="body">
+<p class="lead">Give each repeated row a unique key so Vue can track it.</p>
+<p class="why"><span class="why-tag">Why</span>Without keys Vue may reuse the wrong row when the list changes, so things like typed text end up beside the wrong item.</p>
+<div class="split"><ul class="bullets tight"><li>Looping <b>creates</b> new DOM elements. When the list changes, Vue needs a way to tell which element is which.</li><li>Vue compares the old and new <b>virtual DOM</b> (a light copy of the page in memory). This <b>diffing</b> finds the smallest change to show on screen. Vue uses heuristics to minimise the work.</li><li>For simple updates the heuristics are enough. For complex ones it is hard to tell what has <b>changed</b> and what is <b>new</b>.</li><li>Provide a <b>key</b>: it must be <b>unique</b> for each loop element. Updating an item with the same key updates only the relevant elements.</li><li><b>Rule of thumb</b>: provide a key where possible (an ID, or the index). A stable ID is best: an index breaks when items are inserted or reordered.</li></ul><div class="stack-y"><figure class="code" data-lang="html"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>keys.html</figcaption><pre><code><span class="k">&lt;li v-for=<span class="s">"todo in todos"</span> :key=<span class="s">"todo.id"</span>&gt;</span>
+  <span class="f">{{ todo.text }}</span>
+<span class="k">&lt;/li&gt;</span>
+<span class="c">&lt;!-- unique, stable id per item: Vue tracks each row by it --&gt;</span></code></pre></figure></div></div>
+<div class="demo" data-lab="keys">
+  <h4 class="demo-h">Try it: why keys matter</h4>
+  <div class="lab-row">
+    <button type="button" class="btn sm sel" data-mode="key">With :key</button>
+    <button type="button" class="btn sm" data-mode="none">No key</button>
+    <button type="button" class="btn go sm" data-do="insert">Insert at top</button>
+    <button type="button" class="btn sm" data-do="reset">Reset</button>
+  </div>
+  <ul class="k-list"></ul>
+  <p class="demo-note" aria-live="polite"></p>
+</div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><ul class="bullets"><li>Looping “creates” new DOM elements<ul><li>Vue needs some way to keep track of elements if updating needed</li><li>Virtual DOM “diffing” used to find what changes to reflect on screen</li><li>Vue uses heuristics to see what can be minimized</li></ul></li><li>For simple updates, simple heuristics are sufficient<ul><li>For more complex updates, may not be easy to track what has “changed” or what is “new”</li></ul></li><li>Provide a “key”<ul><li>Key must be unique for each loop element</li><li>Updating item with same key will automatically update only relevant items</li></ul></li><li>Rule of thumb: provide a key where possible - index, ID, …</li></ul></div></details>
+<div class="qc" data-ans="a"><p class="qc-q"><span class="qc-tag">Quick check</span>Why give every <code>v-for</code> row a unique key?</p><div class="qc-opts"><button type="button" data-k="a">So Vue can tell which rows changed, moved or are new</button><button type="button" data-k="b">So the rows appear in alphabetical order</button><button type="button" data-k="c">Because v-for will not run without one</button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden>Keys let Vue match old rows to new ones, so it updates only what changed.</div></div>
+</div></article>
+</div></section>
+<section class="world w2" id="world-2">
+<header class="world-head"><div class="world-title"><span class="badge">World 2</span><h2>ViewModel</h2></div><p class="world-lead">The layer between your data and your screen.</p><details class="simple slides"><summary>Slide agenda</summary><div class="slides-body"><ul class="bullets"><li>Model / View</li><li>ViewModel</li><li>Vue - ViewModel - Vue Instance</li><li>MVC vs MVVM</li><li>Computed Properties</li><li>Watcher</li></ul></div></details></header>
+<div class="grid">
+<article class="slide s-12" id="t-modelview">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">🧩</span>Model and View</h3><span class="no" title="Topic 8">08</span></header>
+<div class="body">
+<p class="lead">The model is the data. The view is how it is shown. They do not always match.</p>
+<p class="why"><span class="why-tag">Why</span>Real screens often need extra or derived data that does not belong in the database.</p>
+<div class="split"><ul class="bullets tight"><li><b>Model</b>: the “data” of the application, usually stored on the server in a database.</li><li><b>View</b>: what is displayed to the end user (or to a non-human consumer). The rendering of the data.</li><li><b>Problem</b>: sometimes the view needs more info than the model holds, or there is derived information.</li><li>Example 1: a form with <code>username</code>, <code>password</code>, <code>repeat_password</code>. Should <code>repeat_password</code> be in the model? Where is it stored and how is it used? (It exists only to check the form, so it is view data, not model data.)</li><li>Example 2: a page with top comments and top posts. Should <code>top_comments</code> and <code>top_posts</code> be in the model, or derived from other data? What does the displayed information correspond to?</li></ul><div class="stack-y"><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>model-vs-view.js</figcaption><pre><code><span class="c">// Model: what is stored in the database</span>
+<span class="k">const</span> userModel = { username: <span class="s">"asha"</span>, password: <span class="s">"secret"</span> };
+
+<span class="c">// What the view needs: the model plus extra and derived data</span>
+<span class="k">const</span> registerView = {
+  username: <span class="s">"asha"</span>,
+  password: <span class="s">"secret"</span>,
+  repeat_password: <span class="s">"secret"</span>,   <span class="c">// form-only: not in the model</span>
+  passwordsMatch: <span class="k">true</span>,        <span class="c">// derived from the two passwords</span>
+};</code></pre></figure></div></div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><ul class="bullets"><li>Model:<ul><li>The “data” of the application</li><li>Usually stored on server in database</li></ul></li><li>View:<ul><li>Displayed to end user (or to non-human consumer)</li><li>Rendering of data</li></ul></li></ul><p>Problem: sometimes <i>view</i> needs more info than needed for <i>model</i>, or perhaps there is derived information</p><p><b>Example</b></p><ul class="bullets"><li>Form with username, password, repeat_password<ul><li>Should repeat_password be in model? Where should it be stored? How should it be used?</li></ul></li><li>Page with top comments, top posts<ul><li>Should top_comments, top_posts be in model?</li><li>Should they be derived from other data?</li><li>What does the displayed information correspond to?</li></ul></li></ul><p>Example credits: <a href="https://www.c-sharpcorner.com/UploadFile/abhikumarvatsa/what-is-model-and-viewmodel-in-mvc-pattern/" target="_blank" rel="noopener">c-sharpcorner.com</a></p></div></details>
+<div class="qc" data-ans="a"><p class="qc-q"><span class="qc-tag">Quick check</span>A form has a <code>repeat_password</code> field used only to check typing. Where does it belong?</p><div class="qc-opts"><button type="button" data-k="a">In the view's own data (the ViewModel)</button><button type="button" data-k="b">In the database model</button><button type="button" data-k="c">In the server's system state</button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden>It is extra data the view needs. It does not belong in the stored model.</div></div>
+</div></article>
+<article class="slide s-12" id="t-viewmodel">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">🪄</span>ViewModel</h3><span class="no" title="Topic 9">09</span></header>
+<div class="body">
+<p class="lead">A model for the view: model data plus extra and derived data, bound to the screen.</p>
+<p class="why"><span class="why-tag">Why</span>It keeps display logic out of both the database model and the HTML, so the code stays clean.</p>
+<div class="split"><ul class="bullets tight"><li>ViewModel is yet another <b>pattern</b>.</li><li>Create model constructs with <b>additional data</b> or <b>derived data</b>.</li><li><b>Bind</b> them to the view: the view auto-updates when the data changes, and (possibly) the data auto-updates when it is changed in the view.</li><li><b>Why</b>: cleaner code.</li></ul><div class="stack-y"><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>viewmodel.js</figcaption><pre><code><span class="k">const</span> vm = {
+  username: <span class="s">"asha"</span>,
+  password: <span class="s">""</span>,
+  repeat: <span class="s">""</span>,
+  get <span class="f">passwordsMatch</span>() {                 <span class="c">// derived data</span>
+    <span class="k">return</span> <span class="k">this</span>.password === <span class="k">this</span>.repeat;
+  },
+};
+<span class="c">// Bound to the view: change vm.repeat and the screen</span>
+<span class="c">// shows the new passwordsMatch with no extra code.</span></code></pre></figure></div></div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><ul class="bullets"><li>Yet another “Pattern”</li><li>Create model constructs with additional data / derived data</li><li>“bind” to view<ul><li>Auto update view on change in data</li><li>(possibly) auto update data when changed in view</li></ul></li><li>Why?<ul><li>cleaner code</li></ul></li></ul></div></details>
+<div class="qc" data-ans="b"><p class="qc-q"><span class="qc-tag">Quick check</span>What is the main reason to use a ViewModel?</p><div class="qc-opts"><button type="button" data-k="a">It stores data on the server</button><button type="button" data-k="b">Cleaner code: extra and derived data bound to the view</button><button type="button" data-k="c">It replaces HTML</button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden>The ViewModel holds what the view needs and keeps it in sync, so neither the model nor the HTML gets cluttered.</div></div>
+</div></article>
+<article class="slide s-12" id="t-instance">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">🏛️</span>Vue instance and MVVM</h3><span class="no" title="Topic 10">10</span></header>
+<div class="body">
+<p class="lead">The Vue instance is Vue's ViewModel. Its data is bound to the view.</p>
+<p class="why"><span class="why-tag">Why</span>A common exam point: MVC and MVVM are not rivals. You can use both together.</p>
+<div class="split"><ul class="bullets tight"><li>Vue docs: “Although not strictly associated with the MVVM pattern, Vue’s design was partly inspired by it.”</li><li><b>Data binding</b>: the <code>data</code> of the Vue instance is the “instance data”. An update to the data is reflected in the view. An update in the view <i>can</i> change the data.</li><li><b>MVC vs MVVM</b>: it is NOT either-MVC-or-MVVM.</li><li><b>Controller</b>: conveys actions to the model and calls the appropriate view based on the inputs and the model.</li><li><b>ViewModel</b>: creates the framework for data binding. You can still use controllers to invoke actions.</li></ul><div class="stack-y"><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>instance.js</figcaption><pre><code><span class="k">const</span> app = Vue.<span class="f">createApp</span>({
+  <span class="f">data</span>() { <span class="k">return</span> { username: <span class="s">"asha"</span> }; },  <span class="c">// instance data</span>
+});
+<span class="k">const</span> vm = app.<span class="f">mount</span>(<span class="s">"#app"</span>);   <span class="c">// vm is the Vue instance</span>
+
+vm.username;               <span class="c">// "asha"</span>
+vm.username = <span class="s">"ravi"</span>;      <span class="c">// the view updates by itself</span></code></pre></figure></div></div>
+<div class="tbl-wrap"><table class="tbl tight min">
+<thead><tr><th scope="col"></th><th scope="col">Controller (MVC)</th><th scope="col">ViewModel (MVVM)</th></tr></thead>
+<tbody>
+<tr><th scope="row">Job</th><td>Conveys actions to the model. Calls the right view for the inputs and model.</td><td>Creates the framework for data binding between model and view.</td></tr>
+<tr><th scope="row">Updating the view</th><td>The controller calls a view</td><td>Automatic: data changes show up on screen</td></tr>
+<tr class="hl"><th scope="row">Together?</th><td colspan="2">Yes. It is not either-or: controllers can still invoke actions alongside a ViewModel.</td></tr>
+</tbody></table></div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><p>“Although not strictly associated with the MVVM pattern, Vue’s design was partly inspired by it.” - Vue documentation</p><ul class="bullets"><li>Data binding</li></ul><p>“data” of Vue instance is the “instance data”</p><ul class="bullets"><li>Update to data will be reflected in the view</li><li>Update in the view <i>can</i> change the data</li></ul><p><b>MVC vs MVVM</b></p><ul class="bullets"><li>NOT either-MVC-or-MVVM</li><li>Controller:<ul><li>Convey actions to model</li><li>Call appropriate view based on inputs and model</li></ul></li><li>ViewModel:<ul><li>Create framework for data binding</li><li>Can still use controllers to invoke actions</li></ul></li></ul></div></details>
+<div class="qc" data-ans="c"><p class="qc-q"><span class="qc-tag">Quick check</span>Which statement about MVC and MVVM is right?</p><div class="qc-opts"><button type="button" data-k="a">You must pick one and drop the other</button><button type="button" data-k="b">A ViewModel makes the model unnecessary</button><button type="button" data-k="c">Controllers can still be used alongside a ViewModel</button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden>They are not exclusive. The ViewModel adds data binding, and controllers can still invoke actions.</div></div>
+</div></article>
+<article class="slide s-12" id="t-computed">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">🧮</span>Computed properties</h3><span class="no" title="Topic 11">11</span></header>
+<div class="body">
+<p class="lead">Data derived from other data, updated automatically and cached.</p>
+<p class="why"><span class="why-tag">Why</span>Derived values stay correct with no manual updating, and they only recompute when something they use changes.</p>
+<div class="split"><ul class="bullets tight"><li>You often need <b>derived data</b>: take the original data and change it with some function or logic. Examples: an on/off boolean for styles from values in the data; navigation links based on history.</li><li>Each time the source data changes, the derived data is updated.</li><li>Computed properties <b>auto-update</b> and are <b>cached</b> based on their reactive dependencies: they recompute only when something they use changes.</li><li>Use one like plain data in the template: <code>{{ fullName }}</code>, no brackets. A method must be called, and it runs on every re-render.</li><li>A computed <b>setter</b> is also possible (see the Vue docs).</li></ul><div class="stack-y"><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>computed.js</figcaption><pre><code>Vue.<span class="f">createApp</span>({
+  <span class="f">data</span>() { <span class="k">return</span> { first: <span class="s">"Asha"</span>, last: <span class="s">"Rao"</span> }; },
+  computed: {
+    <span class="f">fullName</span>() {          <span class="c">// derived, cached, auto-updated</span>
+      <span class="k">return</span> <span class="k">this</span>.first + <span class="s">" "</span> + <span class="k">this</span>.last;
+    },
+  },
+}).<span class="f">mount</span>(<span class="s">"#app"</span>);
+<span class="c">// template:  &lt;p&gt;{{ fullName }}&lt;/p&gt;</span></code></pre></figure><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>setter.js</figcaption><pre><code>computed: {
+  fullName: {
+    <span class="f">get</span>() { <span class="k">return</span> <span class="k">this</span>.first + <span class="s">" "</span> + <span class="k">this</span>.last; },
+    <span class="c">// runs when you write to fullName</span>
+    <span class="f">set</span>(v) { [<span class="k">this</span>.first, <span class="k">this</span>.last] = v.<span class="f">split</span>(<span class="s">" "</span>); },
+  },
+}</code></pre></figure></div></div>
+<div class="demo" data-lab="computed">
+  <h4 class="demo-h">Try it: computed is cached, a method is not</h4>
+  <div class="lab-row"><input class="dom-in" data-f="first" type="text" aria-label="First name"><input class="dom-in" data-f="last" type="text" aria-label="Last name"><button type="button" class="btn sm" data-do="like">Like (unrelated) <span class="likes">0</span></button></div>
+  <div class="two-col" style="margin-top:10px">
+    <div class="col-box"><b>computed fullName</b><p class="b-line c-out"></p><p class="stat">ran <b class="c-runs">0</b> times</p></div>
+    <div class="col-box"><b>method fullName()</b><p class="b-line m-out"></p><p class="stat">ran <b class="m-runs">0</b> times</p></div>
+  </div>
+  <p class="demo-note">Edit a name: both rerun. Press Like: the page re-renders, but only the method reruns.</p>
+</div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><ul class="bullets"><li>Often need to work with <i>derived</i> data<ul><li>Take original data and modify it according to some function / logic</li><li>Examples: Boolean on-off on styles depending on values in data; navigation links depending on history</li></ul></li><li>Each time the source data changes, update the derived data</li></ul><p>Computed properties</p><ul class="bullets"><li>Auto-update</li><li><i>Cached</i> based on their <i>reactive dependencies</i></li></ul><p>Computed “setter” also possible - see documentation for example</p></div></details>
+<div class="qc" data-ans="a"><p class="qc-q"><span class="qc-tag">Quick check</span>The page re-renders because of unrelated data. What does a computed property that does not use that data do?</p><div class="qc-opts"><button type="button" data-k="a">Returns its cached value without recomputing</button><button type="button" data-k="b">Recomputes every time</button><button type="button" data-k="c">Throws an error</button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden>Computed properties are cached on their reactive dependencies. A method would run again.</div></div>
+</div></article>
+<article class="slide s-12" id="t-watcher">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">🕵️</span>Watchers</h3><span class="no" title="Topic 12">12</span></header>
+<div class="body">
+<p class="lead">Run code when a specific value changes.</p>
+<p class="why"><span class="why-tag">Why</span>Use it for side effects like calling a server. For a plain derived value, a computed property is the better tool.</p>
+<div class="split"><ul class="bullets tight"><li><b>Watcher</b>: explicitly look for changes in a value.</li><li>Can be used for <b>imperative</b> code: for more complex logic than just updating a property.</li><li>When possible, <b>use a computed property instead of a watcher</b>: more declarative, and cached.</li><li>Typical use: when <code>query</code> changes, ask the server for new results.</li></ul><div class="stack-y"><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>watch.js</figcaption><pre><code>Vue.<span class="f">createApp</span>({
+  <span class="f">data</span>() { <span class="k">return</span> { query: <span class="s">""</span> }; },
+  watch: {
+    <span class="f">query</span>(newValue, oldValue) {          <span class="c">// runs whenever query changes</span>
+      console.<span class="f">log</span>(oldValue, <span class="s">"-&gt;"</span>, newValue);
+      <span class="c">// e.g. fetch("/api/search?q=" + newValue) ...</span>
+    },
+  },
+}).<span class="f">mount</span>(<span class="s">"#app"</span>);</code></pre></figure></div></div>
+<div class="tbl-wrap"><table class="tbl tight min">
+<thead><tr><th scope="col"></th><th scope="col">Computed property</th><th scope="col">Watcher</th></tr></thead>
+<tbody>
+<tr><th scope="row">Style</th><td>Declarative</td><td>Imperative</td></tr>
+<tr><th scope="row">Use it for</th><td>A value derived from other data</td><td>Side effects and complex logic (e.g. calling a server)</td></tr>
+<tr><th scope="row">Cached</th><td>Yes, until its dependencies change</td><td>No</td></tr>
+<tr class="hl"><th scope="row">Prefer</th><td colspan="2">A computed property, whenever it can do the job.</td></tr>
+</tbody></table></div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><ul class="bullets"><li>Explicitly look for changes</li><li>Can be used for imperative code</li><li>For more complex logic than just updating a property</li></ul><p>When possible, use computed property instead of watcher</p><ul class="bullets"><li>more <i>declarative</i></li><li>caching</li></ul></div></details>
+<div class="qc" data-ans="a"><p class="qc-q"><span class="qc-tag">Quick check</span>You need a value that is derived from two data fields. What is the best choice?</p><div class="qc-opts"><button type="button" data-k="a">A computed property</button><button type="button" data-k="b">A method called on a timer</button><button type="button" data-k="c">A watcher that copies the values</button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden>Computed properties are declarative and cached. Watchers are for side effects and complex logic.</div></div>
+</div></article>
+</div></section>
+<section class="world w3" id="world-3">
+<header class="world-head"><div class="world-title"><span class="badge">World 3</span><h2>Components</h2></div><p class="world-lead">Build the page from reusable pieces.</p><details class="simple slides"><summary>Slide agenda</summary><div class="slides-body"><ul class="bullets"><li>Reuse</li><li>Vue Component Structure</li><li>Templates</li><li>Slot</li></ul></div></details></header>
+<div class="grid">
+<article class="slide s-12" id="t-reuse">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">♻️</span>Reuse and refactor</h3><span class="no" title="Topic 13">13</span></header>
+<div class="body">
+<p class="lead">Write the repeated piece once. Use it many times.</p>
+<p class="why"><span class="why-tag">Why</span>Fix a bug or restyle in one place instead of twenty.</p>
+<div class="split"><ul class="bullets tight"><li><b>DRY</b>: Don't Repeat Yourself.</li><li>Examples: news items on the IITM front page; “People also bought” items on Amazon. Same structure and formatting, repeated.</li><li><b>Refactor</b>: change code without changing functionality. Mainly for readability and maintainability, not for new features.</li><li>A <b>component</b> is Vue's way: one named, reusable piece with its own template, data and props.</li></ul><div class="stack-y"><figure class="code" data-lang="html"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>reuse.html</figcaption><pre><code><span class="c">&lt;!-- Repeated by hand --&gt;</span>
+<span class="k">&lt;div class=<span class="s">"news"</span>&gt;</span><span class="k">&lt;h3&gt;</span>Title A<span class="k">&lt;/h3&gt;</span><span class="k">&lt;p&gt;</span>Text A<span class="k">&lt;/p&gt;</span><span class="k">&lt;/div&gt;</span>
+<span class="k">&lt;div class=<span class="s">"news"</span>&gt;</span><span class="k">&lt;h3&gt;</span>Title B<span class="k">&lt;/h3&gt;</span><span class="k">&lt;p&gt;</span>Text B<span class="k">&lt;/p&gt;</span><span class="k">&lt;/div&gt;</span>
+
+<span class="c">&lt;!-- With a component: write once, use many times --&gt;</span>
+<span class="k">&lt;news-item title=<span class="s">"Title A"</span>&gt;</span>Text A<span class="k">&lt;/news-item&gt;</span>
+<span class="k">&lt;news-item title=<span class="s">"Title B"</span>&gt;</span>Text B<span class="k">&lt;/news-item&gt;</span></code></pre></figure></div></div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><p><b>Reuse</b></p><ul class="bullets"><li>DRY principle: Don’t Repeat Yourself</li><li>Examples:<ul><li>News items on IITM front page</li><li>“People also bought” items on Amazon</li></ul></li><li>Same structure, formatting, repeated</li></ul><p><b>Refactor</b></p><ul class="bullets"><li>Change code without changing functionality</li><li>Mainly for readability and maintainability - not functionality</li></ul></div></details>
+<div class="qc" data-ans="b"><p class="qc-q"><span class="qc-tag">Quick check</span>What does refactoring change?</p><div class="qc-opts"><button type="button" data-k="a">What the program does</button><button type="button" data-k="b">How the code is organised, not what it does</button><button type="button" data-k="c">Which browser it runs in</button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden>Refactoring improves readability and maintainability without changing functionality.</div></div>
+</div></article>
+<article class="slide s-12" id="t-structure">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">🧱</span>Component structure</h3><span class="no" title="Topic 14">14</span></header>
+<div class="body">
+<p class="lead">Props in, data inside, template out.</p>
+<p class="why"><span class="why-tag">Why</span>These three parts are what you define for every component. Know them and most of Vue components is clear.</p>
+<div class="split"><ul class="bullets tight"><li><b>Properties (props)</b>: passed down from the parent to customise each instance.</li><li><b>Data</b>: the individual data of the present instance. It also has its own watchers, computed properties etc.</li><li><b>Template</b>: how to render. Render functions are possible (see the docs). <b>Slots</b>: see the next card.</li><li>Data flows <b>down</b>: parent to child through props. Treat props as read-only inside the child.</li></ul><div class="stack-y"><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>component.js</figcaption><pre><code><span class="k">const</span> app = Vue.<span class="f">createApp</span>({});
+
+app.<span class="f">component</span>(<span class="s">"news-item"</span>, {
+  props: [<span class="s">"title"</span>],                  <span class="c">// from the parent</span>
+  <span class="f">data</span>() { <span class="k">return</span> { open: <span class="k">false</span> }; },  <span class="c">// its own data</span>
+  template: <span class="s">`
+    &lt;div class="news"&gt;
+      &lt;h3 @click="open = !open"&gt;{{ title }}&lt;/h3&gt;
+      &lt;p v-show="open"&gt;&lt;slot&gt;&lt;/slot&gt;&lt;/p&gt;
+    &lt;/div&gt;`</span>,
+});
+app.<span class="f">mount</span>(<span class="s">"#app"</span>);
+<span class="c">// (Vue 2: Vue.component("news-item", { ... }))</span></code></pre></figure><figure class="code" data-lang="html"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>use.html</figcaption><pre><code><span class="k">&lt;news-item title=<span class="s">"Exams"</span>&gt;</span>Dates are out.<span class="k">&lt;/news-item&gt;</span></code></pre></figure></div></div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><ul class="bullets"><li>Properties:<ul><li>passed down from parent - customize each instance</li></ul></li><li>Data:<ul><li>individual data of the present instance</li><li>Also it’s own watchers, computed properties etc.</li></ul></li><li>Template:<ul><li>how to render</li><li>render functions possible - see docs</li><li><i>Slots</i></li></ul></li></ul></div></details>
+<div class="qc" data-ans="b"><p class="qc-q"><span class="qc-tag">Quick check</span>How does a parent customise each instance of a component?</p><div class="qc-opts"><button type="button" data-k="a">By editing the component's template</button><button type="button" data-k="b">By passing props</button><button type="button" data-k="c">By sharing global variables</button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden>Props are passed down from the parent. Each instance can get different values.</div></div>
+</div></article>
+<article class="slide s-12" id="t-templates">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">🎰</span>Templates and slots</h3><span class="no" title="Topic 15">15</span></header>
+<div class="body">
+<p class="lead">{{ }} for text, safely. Slots for the content you pass in.</p>
+<p class="why"><span class="why-tag">Why</span>Vue escapes text for you, which blocks a whole class of injection attacks.</p>
+<div class="split"><ul class="bullets tight"><li>Templates use <code>{{ }}</code>, similar to Jinja.</li><li><b>Safety features</b>: it will not interpolate text into tags. Text is shown as plain text, never run as HTML, so a user-typed <code>&lt;script&gt;</code> cannot execute. It also reports errors on unclosed <code>&lt;div&gt;</code>s etc.</li><li>More complex <b>render functions</b> are possible. <b>JSX</b> mixes JS and HTML, similar to React.</li><li><b>Slot</b>: the main element of text. Use the component like a regular tag, and what you put between the tags goes into the <code>&lt;slot&gt;</code>. Properties can be defined in the tag.</li></ul><div class="stack-y"><figure class="code" data-lang="html"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>escape.html</figcaption><pre><code><span class="c">&lt;!-- comment = "&lt;b&gt;hi&lt;/b&gt;" --&gt;</span>
+
+<span class="c">&lt;!-- shows the characters &lt;b&gt;hi&lt;/b&gt; as text --&gt;</span>
+<span class="k">&lt;p&gt;</span><span class="f">{{ comment }}</span><span class="k">&lt;/p&gt;</span>
+
+<span class="c">&lt;!-- renders real bold HTML: trusted content only --&gt;</span>
+<span class="k">&lt;p v-html=<span class="s">"comment"</span>&gt;</span><span class="k">&lt;/p&gt;</span></code></pre></figure><figure class="code" data-lang="html"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>slot.html</figcaption><pre><code><span class="c">&lt;!-- the template has a &lt;slot&gt;&lt;/slot&gt; for the content --&gt;</span>
+<span class="k">&lt;my-card title=<span class="s">"Hello"</span>&gt;</span>
+  Any <span class="k">&lt;b&gt;</span>content<span class="k">&lt;/b&gt;</span> here lands in the slot
+<span class="k">&lt;/my-card&gt;</span></code></pre></figure></div></div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><ul class="bullets"><li>{{}} format - similar to Jinja</li><li>Safety features:<ul><li>will not interpolate text into tags - why?</li><li>errors on unclosed divs etc</li></ul></li><li>More complex render functions possible<ul><li>JSX: mix JS + HTML - similar to React</li></ul></li></ul><p><b>Slot</b></p><ul class="bullets"><li>Main element of text:<ul><li>use like regular tag</li></ul></li><li>Properties can be defined in tag</li></ul></div></details>
+<div class="qc" data-ans="c"><p class="qc-q"><span class="qc-tag">Quick check</span>Why does <code>{{ comment }}</code> show <code>&lt;b&gt;hi&lt;/b&gt;</code> as text instead of bold?</p><div class="qc-opts"><button type="button" data-k="a">Vue cannot render bold text</button><button type="button" data-k="b">Bold needs a slot</button><button type="button" data-k="c">Vue escapes the text so injected tags cannot run</button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden>Escaping blocks injection attacks (XSS). <code>v-html</code> skips it, so use it only on trusted content.</div></div>
+</div></article>
+</div></section>
+<section class="world w4" id="world-4">
+<header class="world-head"><div class="world-title"><span class="badge">World 4</span><h2>Reactivity Inside</h2></div><p class="world-lead">How Vue notices when data is read or changed.</p><details class="simple slides"><summary>Slide agenda</summary><div class="slides-body"><ul class="bullets"><li>How does reactivity work?</li><li>Object.defineProperty()</li></ul></div></details></header>
+<div class="grid">
+<article class="slide s-12" id="t-howreactive">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">⚙️</span>How does reactivity work?</h3><span class="no" title="Topic 16">16</span></header>
+<div class="body">
+<p class="lead">Vue wraps each property in a getter and setter, so it knows when data is read or changed.</p>
+<p class="why"><span class="why-tag">Why</span>This is the “magic” explained: no polling and no manual updates. Vue hears about a change the instant it happens.</p>
+<div class="split"><ul class="bullets tight"><li>To update the screen automatically, Vue must know when data is <b>accessed</b> and when it is <b>modified</b>.</li><li>How: add methods to objects. In JS everything is an object, so a property can get a <b>getter</b> and a <b>setter</b> with <code>Object.defineProperty()</code>.</li><li><b>get</b> runs when the property is read: the place to <b>track</b> who uses it. <b>set</b> runs when it is written: the place to <b>trigger</b> updates.</li><li>Example 1 just forwards reads and writes to the original data. Example 2 adds <code>track()</code> and <code>trigger()</code>: exactly the hooks Vue uses to re-render.</li><li>Vue 2 did this with <code>defineProperty</code>, as on the slides. Vue 3 uses <code>Proxy</code> for the same job.</li></ul><div class="stack-y"><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>reactive1.js</figcaption><pre><code><span class="k">const</span> data = { count: <span class="n">10</span> };
+<span class="k">const</span> newData = {};
+
+Object.<span class="f">defineProperty</span>(newData, <span class="s">'count'</span>, {
+  <span class="f">get</span>() { <span class="k">return</span> data.count; },
+  <span class="f">set</span>(newValue) { data.count = newValue; },
+});
+
+console.<span class="f">log</span>(newData.count);   <span class="c">// 10</span>
+newData.count = <span class="n">20</span>;           <span class="c">// data.count is now 20</span></code></pre></figure><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>reactive2.js</figcaption><pre><code><span class="k">const</span> data = { count: <span class="n">10</span> };
+<span class="k">const</span> newData = {};
+<span class="k">function</span> <span class="f">track</span>()   { console.<span class="f">log</span>(<span class="s">"Prop accessed"</span>); }
+<span class="k">function</span> <span class="f">trigger</span>() { console.<span class="f">log</span>(<span class="s">"Prop modified"</span>); }
+
+Object.<span class="f">defineProperty</span>(newData, <span class="s">'count'</span>, {
+  <span class="f">get</span>() { <span class="f">track</span>(); <span class="k">return</span> data.count; },
+  <span class="f">set</span>(newValue) { data.count = newValue; <span class="f">trigger</span>(); },
+});
+
+console.<span class="f">log</span>(newData.count);
+<span class="c">// Prop accessed</span>
+<span class="c">// 10</span>
+newData.count = <span class="n">20</span>;
+<span class="c">// Prop modified</span></code></pre></figure></div></div>
+<div class="demo" data-lab="reactive">
+  <h4 class="demo-h">Try it: the getter and setter, running</h4>
+  <div class="lab-row">
+    <button type="button" class="btn sm" data-act="read">read count</button>
+    <button type="button" class="btn sm" data-act="set20">count = 20</button>
+    <button type="button" class="btn sm" data-act="inc">count = count + 1</button>
+    <button type="button" class="btn sm" data-act="reset">Reset</button>
+  </div>
+  <div class="two-col" style="margin-top:10px">
+    <div><pre class="lab-code r-log" aria-label="Console" aria-live="polite"></pre></div>
+    <div><div class="r-view" aria-live="polite"></div><p class="demo-note">The setter calls render(): the view changes by itself.</p></div>
+  </div>
+</div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><ul class="bullets"><li>Need to track when data is<ul><li>accessed</li><li>modified</li></ul></li><li>Add methods to objects<ul><li>Everything in JS is an object!</li></ul></li></ul><p><code>Object.defineProperty()</code></p><p><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty" target="_blank" rel="noopener">developer.mozilla.org: Object.defineProperty</a></p><p>Examples from: <a href="https://blog.logrocket.com/your-guide-to-reactivity-in-vue-js/" target="_blank" rel="noopener">blog.logrocket.com/your-guide-to-reactivity-in-vue-js</a> (the two code samples at the end of the Week 4 slides)</p></div></details>
+<div class="qc" data-ans="c"><p class="qc-q"><span class="qc-tag">Quick check</span>In the getter/setter example, which part tells Vue that the data <b>changed</b>?</p><div class="qc-opts"><button type="button" data-k="a">The getter</button><button type="button" data-k="b">The <code>console.log</code></button><button type="button" data-k="c">The setter</button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden><code>set</code> runs on every write, so it is where <code>trigger()</code> notifies Vue. <code>get</code> is where reads are tracked.</div></div>
+</div></article>
+</div></section>
+</main>
+
+<footer class="foot">
+  <p class="clear">Level complete</p>
+  <p><span class="score" id="score">Quick checks: 0 / 16 right</span></p>
+  <a class="btn go" href="#top">Back to top</a>
+  <a class="btn go" href="index.html">All weeks</a>
+</footer>
+
+<script>
+/* MAD-II notes: progress with percentage, sound, small demos, quick checks.
+   Plain JavaScript, no libraries. Everything degrades quietly if storage or audio is blocked. */
+(function () {
+  "use strict";
+
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function save(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function text(el, s) { if (el) el.textContent = s; }
+
+  /* ---------------------------------------------------------------
+     1. Sound: three tiny 8-bit blips. Off with the speaker button.
+     --------------------------------------------------------------- */
+  var Sound = (function () {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    var ctx = null, master = null, on = load("mad2-sound") !== "off";
+
+    function ensure() {
+      if (!AC) return false;
+      try {
+        if (!ctx) {
+          ctx = new AC();
+          master = ctx.createGain();
+          master.gain.value = 0.22;
+          master.connect(ctx.destination);
+        }
+        if (ctx.state === "suspended" && ctx.resume) ctx.resume();
+        return true;
+      } catch (e) { return false; }
+    }
+    function blip(freq, t, dur, vol) {
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "square";
+      o.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(master);
+      o.start(t); o.stop(t + dur + 0.02);
+    }
+    var fx = {
+      tick: function (t) { blip(740, t, 0.05, 0.4); },
+      ok:   function (t) { blip(660, t, 0.08, 0.45); blip(990, t + 0.08, 0.13, 0.45); },
+      bad:  function (t) { blip(220, t, 0.12, 0.45); blip(150, t + 0.11, 0.2, 0.45); }
+    };
+    return {
+      play: function (name) { if (on && fx[name] && ensure()) fx[name](ctx.currentTime + 0.01); },
+      isOn: function () { return on; },
+      set: function (v) { on = !!v; save("mad2-sound", on ? "on" : "off"); }
+    };
+  })();
+
+  var sndBtn = $("#snd");
+  function syncSnd() {
+    if (!sndBtn) return;
+    var on = Sound.isOn();
+    sndBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    sndBtn.setAttribute("aria-label", on ? "Sound effects on. Press to mute" : "Sound effects muted. Press to turn on");
+    text($(".tt-label", sndBtn), on ? "Sound" : "Muted");
+  }
+  if (sndBtn) {
+    sndBtn.addEventListener("click", function () {
+      Sound.set(!Sound.isOn());
+      syncSnd();
+      Sound.play("tick");      // plays only when turning sound on
+    });
+    syncSnd();
+  }
+
+  /* ---------------------------------------------------------------
+     2. Reading progress with a percentage (follows the scroll)
+     --------------------------------------------------------------- */
+  (function () {
+    var track = $(".pbar"), fill = $(".pbar i"), pct = $("#pct");
+    if (!track || !fill) return;
+    var shown = -1, queued = false;
+    function update() {
+      queued = false;
+      var max = document.documentElement.scrollHeight - window.innerHeight;
+      var p = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
+      var whole = Math.round(p * 100);
+      track.style.setProperty("--p", (p * 100).toFixed(2));
+      track.classList.toggle("zero", p < 0.005);
+      if (whole !== shown) {
+        shown = whole;
+        text(pct, whole + "%");
+        track.setAttribute("aria-valuenow", String(whole));
+      }
+    }
+    function queue() { if (!queued) { queued = true; requestAnimationFrame(update); } }
+    window.addEventListener("scroll", queue, { passive: true });
+    window.addEventListener("resize", queue);
+    update();
+  })();
+
+  /* ---------------------------------------------------------------
+     3. Step-through demos: call stack and event loop
+        Each step lists exactly what is on screen at that moment.
+     --------------------------------------------------------------- */
+  var SIMS = {
+    stack: [
+      { line: 0, stack: ["main()"],                      note: "The program starts. main() sits at the bottom of the stack." },
+      { line: 4, stack: ["main()", "f()"],               note: "main calls f(). f goes on top of the stack." },
+      { line: 3, stack: ["main()", "f()", "g()"],        note: "f calls g(). g goes on top." },
+      { line: 2, stack: ["main()", "f()", "g()", "h()"], note: "g calls h(). h goes on top." },
+      { line: 1, stack: ["main()", "f()", "g()", "h()"], note: "h is on top, so h runs. Only the top function runs." },
+      { line: 2, stack: ["main()", "f()", "g()"],        note: "h returns. Pop h. Control goes back into g." },
+      { line: 3, stack: ["main()", "f()"],               note: "g returns. Pop g. Control goes back into f." },
+      { line: 4, stack: ["main()"],                      note: "f returns. Pop f. Control goes back into main." },
+      { line: 0, stack: ["main()"],                      note: "Done. Last in, first out: h left first, then g, then f." }
+    ],
+    loop: [
+      { line: 0, stack: ["main()"],              queue: [],           out: [],                note: "The script starts. main() is on the stack." },
+      { line: 1, stack: ["main()"],              queue: [],           out: ["A"],             note: "console.log(\"A\") runs straight away. A is printed." },
+      { line: 2, stack: ["main()"],              queue: ["timer callback"], out: ["A"],        note: "setTimeout gives the timer to the browser. After 0 ms its callback joins the task queue. It does not run yet." },
+      { line: 3, stack: ["main()"],              queue: ["timer callback"], out: ["A", "C"],   note: "main keeps going: C is printed. The callback must wait." },
+      { line: 0, stack: [],                      queue: ["timer callback"], out: ["A", "C"],   note: "main has finished. The call stack is empty." },
+      { line: 0, stack: ["timer callback"],      queue: [],           out: ["A", "C"],        note: "The event loop sees an empty stack, so it moves the next task from the queue onto the stack." },
+      { line: 2, stack: ["timer callback"],      queue: [],           out: ["A", "C", "B"],   note: "The callback runs to completion: B is printed." },
+      { line: 0, stack: [],                      queue: [],           out: ["A", "C", "B"],   note: "Stack and queue are empty. Order: A, C, B. A 0 ms timer still runs after the current code." }
+    ]
+  };
+
+  function block(label, cls) {
+    var d = document.createElement("div");
+    d.className = "blk" + (cls ? " " + cls : "");
+    d.textContent = label;
+    return d;
+  }
+
+  function simDemo(root) {
+    var steps = SIMS[root.getAttribute("data-sim")];
+    if (!steps) return;
+    var i = 0;
+    var lines = $$(".ln", root), stackEl = $(".well.stack", root), queueEl = $(".well.queue", root), outEl = $(".well.out", root);
+    var note = $(".demo-note", root), count = $(".sim-count", root);
+    var next = $('[data-do="next"]', root), reset = $('[data-do="reset"]', root);
+
+    function fill(el, items, topClass) {
+      if (!el) return;
+      el.textContent = "";
+      items.forEach(function (label, n) {
+        el.appendChild(block(label, topClass && n === items.length - 1 ? "top" : ""));
+      });
+    }
+    function render() {
+      var s = steps[i];
+      lines.forEach(function (l) { l.classList.toggle("on", Number(l.getAttribute("data-l")) === s.line); });
+      fill(stackEl, s.stack, true);
+      fill(queueEl, s.queue || [], false);
+      fill(outEl, s.out || [], false);
+      text(note, s.note);
+      text(count, "Step " + (i + 1) + " / " + steps.length);
+      var last = i === steps.length - 1;
+      next.disabled = last;
+      text(next, last ? "Done" : "Step");
+    }
+    next.addEventListener("click", function () {
+      if (i < steps.length - 1) { i++; render(); Sound.play("tick"); }
+    });
+    reset.addEventListener("click", function () { i = 0; render(); Sound.play("tick"); });
+    render();
+  }
+  $$("[data-sim]").forEach(simDemo);
+
+  /* ---------------------------------------------------------------
+     4. map / filter / find chain builder
+     --------------------------------------------------------------- */
+  function chainLab(root) {
+    var start = [1, 2, 3, 4, 5, 6];
+    var OPS = {
+      filter: { code: ".filter(x => x % 2 === 0)", run: function (a) { return a.filter(function (x) { return x % 2 === 0; }); },
+                note: "filter keeps only the items where the callback is true." },
+      map:    { code: ".map(x => x * 10)", run: function (a) { return a.map(function (x) { return x * 10; }); },
+                note: "map changes every item. Same length as before." },
+      find:   { code: ".find(x => x > 30)", run: function (a) { return a.find(function (x) { return x > 30; }); }, last: true,
+                note: "find returns the first match (or undefined), not an array, so the chain ends here." }
+    };
+    var chosen = [];
+    var codeEl = $(".lab-code", root), resEl = $(".lab-res", root), note = $(".demo-note", root);
+    var btns = $$("[data-op]", root);
+
+    function fmt(v) { return Array.isArray(v) ? "[" + v.join(", ") + "]" : String(v); }
+    function render() {
+      var val = start.slice(), code = "nums";
+      chosen.forEach(function (k) { val = OPS[k].run(val); code += "\n  " + OPS[k].code; });
+      text(codeEl, code + ";");
+      text(resEl, fmt(val));
+      var ended = chosen.indexOf("find") > -1;
+      btns.forEach(function (b) {
+        var k = b.getAttribute("data-op");
+        if (k === "reset") return;
+        b.disabled = chosen.indexOf(k) > -1 || ended;
+      });
+      text(note, chosen.length ? OPS[chosen[chosen.length - 1]].note
+        : "Click a step to add it to the chain. Try filter then map, then map then filter.");
+    }
+    root.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest("[data-op]") : null;
+      if (!b || b.disabled) return;
+      var k = b.getAttribute("data-op");
+      if (k === "reset") chosen = []; else chosen.push(k);
+      Sound.play("tick");
+      render();
+    });
+    render();
+  }
+  $$('[data-lab="chain"]').forEach(chainLab);
+
+  /* ---------------------------------------------------------------
+     5. JSON checker
+     --------------------------------------------------------------- */
+  function jsonLab(root) {
+    var PRESETS = {
+      ok: '{\n  "name": "Sam",\n  "age": 20,\n  "marks": [90, 85],\n  "active": true\n}',
+      trail: '{\n  "name": "Sam",\n  "age": 20,\n}',
+      single: "{'name': 'Sam'}",
+      bare: '{name: "Sam"}',
+      comment: '{\n  "name": "Sam" // student\n}'
+    };
+    var input = $(".jl-in", root), out = $(".jl-out", root);
+    input.value = PRESETS.ok;
+
+    function check() {
+      var ok, pre = null, msg;
+      try {
+        var v = JSON.parse(input.value);
+        ok = true;
+        msg = "Valid JSON. JSON.parse gives:";
+        pre = JSON.stringify(v, null, 2);
+      } catch (err) {
+        ok = false;
+        msg = "SyntaxError: " + err.message;
+      }
+      out.hidden = false;
+      out.className = "jl-out " + (ok ? "ok" : "bad");
+      out.textContent = (ok ? "✓ " : "✗ ") + msg;
+      if (pre !== null) {
+        var p = document.createElement("pre");
+        p.textContent = pre;
+        out.appendChild(p);
+      }
+      Sound.play(ok ? "ok" : "bad");
+    }
+    root.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest("button") : null;
+      if (!b) return;
+      var preset = b.getAttribute("data-preset");
+      if (preset && PRESETS[preset]) { input.value = PRESETS[preset]; check(); }
+      else if (b.getAttribute("data-do") === "parse") check();
+    });
+    input.addEventListener("input", function () { out.hidden = true; });
+  }
+  $$('[data-lab="json"]').forEach(jsonLab);
+
+  /* ---------------------------------------------------------------
+     5b. "Pick one": each button shows a snippet, its result and why.
+         Used for typeof, coercion, scope, const and semicolon demos.
+     --------------------------------------------------------------- */
+  function pickLab(root) {
+    var btns = $$("button[data-code]", root);
+    var codeEl = $(".lab-code", root), resEl = $(".lab-res", root), note = $(".demo-note", root);
+    var intro = note ? note.textContent : "";
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", "false");
+      b.addEventListener("click", function () {
+        btns.forEach(function (o) { o.classList.remove("sel"); o.setAttribute("aria-pressed", "false"); });
+        b.classList.add("sel"); b.setAttribute("aria-pressed", "true");
+        var kind = b.getAttribute("data-kind"), bad = kind === "bad";
+        text(codeEl, b.getAttribute("data-code"));
+        text(resEl, b.getAttribute("data-res"));
+        resEl.className = "lab-res" + (bad ? " err" : kind === "warn" ? " warn" : "");
+        text(note, b.getAttribute("data-why") || intro);
+        Sound.play(bad ? "bad" : "tick");
+      });
+    });
+  }
+  $$('[data-lab="pick"]').forEach(pickLab);
+
+  /* ---------------------------------------------------------------
+     5c. Can I use this word as a name?
+     --------------------------------------------------------------- */
+  function identLab(root) {
+    var RESERVED = ("await break case catch class const continue debugger default delete do else export extends " +
+      "finally for function if import in instanceof let new return static super switch this throw try typeof var void while with yield").split(" ");
+    var LITERAL = ["true", "false", "null"];
+    var AVOID = ("enum implements package protected interface private public Infinity NaN undefined async").split(" ");
+    var input = $("input", root), out = $(".id-out", root);
+    function show(kind, msg) { out.className = "jl-out id-out " + kind; text(out, msg); }
+    function check() {
+      var w = input.value.trim();
+      if (!w) { out.className = "jl-out id-out"; text(out, "Type a name to test it."); return; }
+      if (RESERVED.indexOf(w) > -1) { show("bad", "✗ Reserved word: it already has a meaning, so it cannot be a name."); Sound.play("bad"); return; }
+      if (LITERAL.indexOf(w) > -1)  { show("bad", "✗ Literal (a fixed value): it cannot be a name."); Sound.play("bad"); return; }
+      if (AVOID.indexOf(w) > -1)    { show("warn", "! Risky: kept for the future or has a special meaning. Avoid it."); Sound.play("tick"); return; }
+      var re; try { re = new RegExp("^[\\p{L}_$][\\p{L}\\p{N}_$]*$", "u"); } catch (e) { re = /^[A-Za-z_$][\w$]*$/; }
+      if (!re.test(w)) { show("bad", "✗ A name uses letters, digits, _ or $, and cannot start with a digit."); Sound.play("bad"); return; }
+      if (/[^\x00-\x7f]/.test(w)) { show("warn", "! Legal, but avoid non-English names so the code stays readable."); Sound.play("tick"); return; }
+      show("ok", "✓ Free name. You can use it."); Sound.play("ok");
+    }
+    $(".btn", root).addEventListener("click", check);
+    input.addEventListener("keydown", function (e) { if (e.key === "Enter") check(); });
+    $$("[data-try]", root).forEach(function (b) {
+      b.addEventListener("click", function () { input.value = b.getAttribute("data-try"); check(); });
+    });
+  }
+  $$('[data-lab="ident"]').forEach(identLab);
+
+  /* ---------------------------------------------------------------
+     5d. Live DOM demo: the same code as on the card, really running
+     --------------------------------------------------------------- */
+  function domLab(root) {
+    var input = $("input", root), out = $(".dom-out", root), go = $(".btn", root);
+    function run() {
+      out.textContent = "Hello, " + input.value + "!";   // output
+      out.style.color = "tomato";
+      Sound.play("ok");
+    }
+    go.addEventListener("click", run);
+    input.addEventListener("keydown", function (e) { if (e.key === "Enter") run(); });
+  }
+  $$('[data-lab="dom"]').forEach(domLab);
+
+  /* ---------------------------------------------------------------
+     5e. Tic-Tac-Toe: the board is always drawn from the state
+     --------------------------------------------------------------- */
+  function tttLab(root) {
+    var board = $(".ttt-board", root), view = $(".ttt-state", root), note = $(".demo-note", root);
+    var LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    var state;
+    function fresh() { state = { cells: [null,null,null,null,null,null,null,null,null], turn: "X", winner: null }; }
+    function winner() {
+      for (var i = 0; i < LINES.length; i++) {
+        var l = LINES[i], c = state.cells;
+        if (c[l[0]] && c[l[0]] === c[l[1]] && c[l[0]] === c[l[2]]) return { who: c[l[0]], line: l };
+      }
+      return null;
+    }
+    function cellText(v) { return v === null ? "null" : '"' + v + '"'; }
+    function render(focusIdx) {                       // UI = f(state)
+      var w = winner(), full = state.cells.every(function (v) { return v; });
+      state.winner = w ? w.who : null;
+      board.textContent = "";
+      state.cells.forEach(function (v, i) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "ttt-cell" + (v ? " " + v.toLowerCase() : "") + (w && w.line.indexOf(i) > -1 ? " win" : "");
+        b.textContent = v || "";
+        b.setAttribute("data-i", i);
+        b.setAttribute("aria-label", "Cell " + (i + 1) + ", " + (v ? v : "empty"));
+        board.appendChild(b);
+      });
+      var c = state.cells.map(cellText);
+      view.textContent = "cells: [" + c.slice(0, 3).join(", ") + ",\n        " + c.slice(3, 6).join(", ") + ",\n        " +
+        c.slice(6).join(", ") + "]\nturn: \"" + state.turn + "\"\nwinner: " + (state.winner ? '"' + state.winner + '"' : "null");
+      text(note, w ? w.who + " wins. The screen was redrawn from the state." : full ? "A draw. Reset to play again." :
+        "Turn: " + state.turn + ". Click a cell: the state changes first, then the screen is rebuilt from it.");
+      if (typeof focusIdx === "number") { var f = board.children[focusIdx]; if (f) f.focus(); }
+    }
+    board.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest(".ttt-cell") : null;
+      if (!b) return;
+      var i = Number(b.getAttribute("data-i"));
+      if (state.cells[i] || winner()) { Sound.play("bad"); return; }
+      state.cells[i] = state.turn;                     // 1. update the state
+      state.turn = state.turn === "X" ? "O" : "X";
+      render(i);                                       // 2. redraw from the state
+      Sound.play(winner() ? "ok" : "tick");
+    });
+    $('[data-do="reset"]', root).addEventListener("click", function () { fresh(); render(); Sound.play("tick"); });
+    fresh(); render();
+  }
+  $$('[data-lab="ttt"]').forEach(tttLab);
+
+  /* ---------------------------------------------------------------
+     5f. Vue-style demos (plain JS): bindings, class binding, v-if / v-show,
+         keys, computed caching, and getter/setter reactivity.
+     --------------------------------------------------------------- */
+  function mk(tag, cls, txt) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (txt) e.textContent = txt;
+    return e;
+  }
+
+  // v-bind (one way) next to v-model (two way)
+  function bindLab(root) {
+    var note = $(".demo-note", root);
+    $$("[data-mode]", root).forEach(function (col) {
+      var two = col.getAttribute("data-mode") === "two";
+      var input = $("input", col), out = $(".b-out", col), name = "Asha";
+      function show() { text(out, name); }
+      input.value = name; show();
+      input.addEventListener("input", function () {
+        if (two) { name = input.value; show(); text(note, "v-model is two-way: typing changed the variable, so the text followed."); }
+        else { text(note, "v-bind is one-way: you typed, but the variable is still “" + name + "”. Data flows variable to input only."); }
+      });
+      $(".btn", col).addEventListener("click", function () {
+        name = "Ravi"; input.value = name; show(); Sound.play("tick");
+        text(note, "Code set name = \"Ravi\". Both inputs updated: the variable always pushes to the input.");
+      });
+    });
+  }
+  $$('[data-lab="bind"]').forEach(bindLab);
+
+  // :class="{ active: isActive, 'text-danger': hasError }"
+  function classLab(root) {
+    var box = $(".cb-box", root), out = $(".cb-out", root), chks = $$("input[type=checkbox]", root);
+    function render() {
+      var applied = [], parts = [];
+      chks.forEach(function (c) {
+        var k = c.getAttribute("data-k"), on = c.checked;
+        if (on) applied.push(k);
+        parts.push((/-/.test(k) ? "'" + k + "'" : k) + ": " + on);
+      });
+      box.className = "cb-box" + (applied.length ? " " + applied.join(" ") : "");
+      text(out, ':class="{ ' + parts.join(", ") + ' }"\nrenders  class="box' + (applied.length ? " " + applied.join(" ") : "") + '"');
+    }
+    chks.forEach(function (c) { c.addEventListener("change", function () { Sound.play("tick"); render(); }); });
+    render();
+  }
+  $$('[data-lab="classbind"]').forEach(classLab);
+
+  // v-if adds and removes the element, v-show only flips display
+  function ifShowLab(root) {
+    var chk = $("input", root), host = $(".is-host", root), shown = $(".is-show", root);
+    var rIf = $(".r-if", root), rShow = $(".r-show", root);
+    var node = mk("div", "is-box", "v-if box");
+    function render() {
+      var on = chk.checked;
+      if (on && !host.contains(node)) host.appendChild(node);
+      if (!on && host.contains(node)) host.removeChild(node);
+      shown.style.display = on ? "" : "none";
+      text(rIf, "In the DOM: " + (host.contains(node) ? "yes" : "no, removed"));
+      text(rShow, "In the DOM: yes. display: " + (on ? "block" : "none"));
+    }
+    chk.addEventListener("change", function () { Sound.play("tick"); render(); });
+    render();
+  }
+  $$('[data-lab="ifshow"]').forEach(ifShowLab);
+
+  // keys: rows reused by position (no key) or by id (key)
+  function keysLab(root) {
+    var list = $(".k-list", root), note = $(".demo-note", root), add = $('[data-do="insert"]', root);
+    var modeBtns = $$("[data-mode]", root);
+    var mode = "key", items, nextId, byId, byPos;
+    function row() {
+      var li = mk("li", "k-row");
+      li.appendChild(mk("span", "k-label"));
+      var inp = mk("input", "dom-in"); inp.type = "text"; inp.setAttribute("aria-label", "Type something here");
+      li.appendChild(inp);
+      return li;
+    }
+    function patch() {
+      var wanted = items.map(function (it, i) {
+        var li = mode === "key" ? (byId[it.id] || (byId[it.id] = row())) : (byPos[i] || (byPos[i] = row()));
+        text($(".k-label", li), it.name);
+        return li;
+      });
+      wanted.forEach(function (li, i) { if (list.children[i] !== li) list.insertBefore(li, list.children[i] || null); });
+      while (list.children.length > wanted.length) list.removeChild(list.lastChild);
+      add.disabled = items.length >= 6;
+    }
+    function reset(msg) {
+      items = [{ id: 1, name: "Apple" }, { id: 2, name: "Banana" }, { id: 3, name: "Cherry" }];
+      nextId = 4; byId = {}; byPos = []; list.textContent = "";
+      patch();
+      text(note, msg || "Type something in the Apple box, then press Insert at top.");
+    }
+    modeBtns.forEach(function (b) {
+      b.addEventListener("click", function () {
+        mode = b.getAttribute("data-mode");
+        modeBtns.forEach(function (o) { o.classList.toggle("sel", o === b); o.setAttribute("aria-pressed", o === b ? "true" : "false"); });
+        Sound.play("tick");
+        reset(mode === "key" ? "With :key=\"item.id\". Type in the Apple box, then Insert at top." : "No key (rows matched by position). Type in the Apple box, then Insert at top.");
+      });
+    });
+    add.addEventListener("click", function () {
+      items.unshift({ id: nextId, name: "New " + (nextId - 3) });
+      nextId++;
+      patch();
+      Sound.play("tick");
+      text(note, mode === "key"
+        ? "Keyed: each row moved with its item, typed text included."
+        : "No key: Vue reused rows by position. Your typed text stayed in the same spot while the labels shifted, so it now sits beside the wrong item.");
+    });
+    $('[data-do="reset"]', root).addEventListener("click", function () { reset(); Sound.play("tick"); });
+    modeBtns.forEach(function (o) { o.setAttribute("aria-pressed", o.getAttribute("data-mode") === mode ? "true" : "false"); o.classList.toggle("sel", o.getAttribute("data-mode") === mode); });
+    reset();
+  }
+  $$('[data-lab="keys"]').forEach(keysLab);
+
+  // computed (cached) next to a method (runs on every render)
+  function computedLab(root) {
+    var s = { first: "Asha", last: "Rao", likes: 0 };
+    var cache = "", dirty = true, cRuns = 0, mRuns = 0;
+    var fIn = $('[data-f="first"]', root), lIn = $('[data-f="last"]', root);
+    var outC = $(".c-out", root), outM = $(".m-out", root), runsC = $(".c-runs", root), runsM = $(".m-runs", root), likes = $(".likes", root);
+    function computedFull() { if (dirty) { cRuns++; cache = s.first + " " + s.last; dirty = false; } return cache; }
+    function methodFull() { mRuns++; return s.first + " " + s.last; }
+    function render() {
+      text(outC, computedFull()); text(outM, methodFull());
+      text(runsC, String(cRuns)); text(runsM, String(mRuns)); text(likes, String(s.likes));
+    }
+    fIn.value = s.first; lIn.value = s.last;
+    fIn.addEventListener("input", function () { s.first = fIn.value; dirty = true; render(); });
+    lIn.addEventListener("input", function () { s.last = lIn.value; dirty = true; render(); });
+    $('[data-do="like"]', root).addEventListener("click", function () { s.likes++; render(); Sound.play("tick"); });
+    render();
+  }
+  $$('[data-lab="computed"]').forEach(computedLab);
+
+  // real getter/setter reactivity (the code on the card, running)
+  function reactiveLab(root) {
+    var logEl = $(".r-log", root), view = $(".r-view", root), lines = [];
+    var data = { count: 10 }, newData = {};
+    function log(t) { lines.push(t); if (lines.length > 8) lines.shift(); text(logEl, lines.join("\n")); }
+    function render() { text(view, "Count: " + data.count); }
+    Object.defineProperty(newData, "count", {
+      get: function () { log("Prop accessed"); return data.count; },
+      set: function (v) { data.count = v; log("Prop modified"); render(); }
+    });
+    var ACTIONS = {
+      read: function () { log("> console.log(newData.count)"); log(String(newData.count)); },
+      set20: function () { log("> newData.count = 20"); newData.count = 20; },
+      inc: function () { log("> newData.count = newData.count + 1"); newData.count = newData.count + 1; },
+      reset: function () { lines = []; data.count = 10; text(logEl, ""); render(); }
+    };
+    $$("[data-act]", root).forEach(function (b) {
+      b.addEventListener("click", function () { ACTIONS[b.getAttribute("data-act")](); Sound.play("tick"); });
+    });
+    render();
+  }
+  $$('[data-lab="reactive"]').forEach(reactiveLab);
+
+  /* ---------------------------------------------------------------
+     6. Quick checks (one question per topic) + score in the footer
+     --------------------------------------------------------------- */
+  (function () {
+    var boxes = $$(".qc"), scoreEl = $("#score");
+    var right = 0;
+    function showScore() { text(scoreEl, "Quick checks: " + right + " / " + boxes.length + " right"); }
+
+    boxes.forEach(function (qc) {
+      var correct = qc.getAttribute("data-ans");
+      var opts = $$(".qc-opts button", qc);
+      var fb = $(".qc-fb", qc), why = $(".qc-why", qc);
+      var counted = false;       // only the first try counts for the score
+
+      function lock(on) { opts.forEach(function (b) { b.disabled = on; }); }
+      function clear() {
+        opts.forEach(function (b) { b.classList.remove("ok", "no"); });
+        fb.hidden = true; fb.textContent = "";
+        lock(false);
+      }
+      function answer(btn) {
+        var k = btn.getAttribute("data-k"), good = k === correct;
+        lock(true);
+        btn.classList.add(good ? "ok" : "no");
+        if (!good) opts.forEach(function (b) { if (b.getAttribute("data-k") === correct) b.classList.add("ok"); });
+        fb.hidden = false;
+        fb.innerHTML = "<b>" + (good ? "Correct." : "Not quite.") + "</b> " + why.innerHTML;
+        if (!good) {
+          var r = document.createElement("button");
+          r.type = "button"; r.className = "retry"; r.textContent = "Try again";
+          r.addEventListener("click", function () { clear(); Sound.play("tick"); });
+          fb.appendChild(r);
+        }
+        if (!counted) { counted = true; if (good) right++; showScore(); }
+        Sound.play(good ? "ok" : "bad");
+      }
+      opts.forEach(function (b) { b.addEventListener("click", function () { answer(b); }); });
+    });
+    showScore();
+  })();
+})();
+
+</script>
+</body>
+</html>

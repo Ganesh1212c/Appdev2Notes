@@ -1,0 +1,3336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MAD-II Week 3</title>
+  <meta name="description" content="MAD-II Week 3: frontend implementation, declarative UI and the three kinds of state.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <style>
+/* ==========================================================
+   Study Hub - shared stylesheet
+   Cartoon + light pixel theme
+   (MAD-II base styles first, then "Study hub additions" at the end)
+   ========================================================== */
+
+/* ---------- Tokens ---------- */
+:root {
+  --ink: #2b2d42;
+  --paper: #fffaf0;
+  --sky: #e8f6ff;
+  --sky-2: #8ecae6;
+  --butter: #ffe66d;
+  --peach: #ffc8b8;
+  --lilac: #d9c7f0;
+  --mint: #b9f0d5;
+  --coral: #ff7b7b;
+  --pink: #ffb3d1;
+
+  /* theme tokens (light values = the original look) */
+  --edge: #2b2d42;          /* outlines and borders */
+  --edge-shadow: #2b2d42;   /* hard drop shadows */
+  --on-ink: #fff;           /* text drawn on an --ink fill */
+  --surface: #fff;          /* cards and chips */
+  --surface-2: #fff9ec;     /* soft panels */
+  --grid: rgba(142, 202, 230, 0.30);
+  --rule: rgba(43, 45, 66, 0.35);
+  --shade: rgba(43, 45, 66, 0.16);
+  --muted: rgba(43, 45, 66, 0.75);
+  --hl: #fff3b0;
+  --chip-res: #efe6fb;
+  --tricky: #ffe9e0;
+  --title-glow: rgba(255, 255, 255, 0.85);
+  --coral-hover: #ff9a9a;
+  --heavy-bg: #fff7a8;
+  --heavy-head: #ffd23f;
+
+  --font-pixel: "Press Start 2P", "Courier New", monospace;
+  --font-body: "Fredoka", "Baloo 2", "Comic Sans MS", "Trebuchet MS", system-ui, sans-serif;
+  --font-code: "VT323", "Courier New", monospace;
+}
+
+/* ---------- Base ---------- */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 90px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1.1rem;
+  line-height: 1.55;
+  background-color: var(--sky);
+  background-image: linear-gradient(var(--grid) 2px, transparent 2px),
+    linear-gradient(90deg, var(--grid) 2px, transparent 2px);
+  background-size: 32px 32px;
+}
+
+a { color: inherit; text-decoration-thickness: 3px; text-underline-offset: 3px; text-decoration-color: var(--coral); }
+a:hover { background: var(--butter); }
+a:focus-visible,
+abbr:focus-visible { outline: 4px solid var(--coral); outline-offset: 3px; }
+
+abbr[title] {
+  text-decoration: underline dotted 2px;
+  text-underline-offset: 4px;
+  cursor: help;
+}
+
+mark {
+  color: inherit;
+  padding: 0 3px;
+  background: linear-gradient(transparent 52%, var(--butter) 52%);
+  font-weight: 600;
+}
+
+code {
+  font-family: var(--font-code);
+  font-size: 1.3em;
+  line-height: 1;
+  padding: 0 6px;
+  background: var(--hl);
+  border: 2px solid var(--edge);
+  border-radius: 6px;
+}
+
+.sprites { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* ---------- Scroll progress (CSS only, where supported) ---------- */
+.progress {
+  display: none;
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 6px;
+  background: var(--coral);
+  transform-origin: left center;
+  transform: scaleX(0);
+  z-index: 100;
+}
+@supports (animation-timeline: scroll()) {
+  .progress { display: block; animation: fill linear both; animation-timeline: scroll(root); }
+}
+@keyframes fill { to { transform: scaleX(1); } }
+
+/* ---------- Drifting pixel clouds ---------- */
+.sky { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.cloud { position: absolute; left: 0; shape-rendering: crispEdges; animation: drift linear infinite; }
+.c1 { top: 14%; width: 180px; height: 45px;   animation-duration: 95s;  animation-delay: -20s; }
+.c2 { top: 38%; width: 120px; height: 30px;   animation-duration: 120s; animation-delay: -70s; }
+.c3 { top: 62%; width: 220px; height: 55px;   animation-duration: 140s; animation-delay: -40s; }
+.c4 { top: 84%; width: 150px; height: 37.5px; animation-duration: 110s; animation-delay: -90s; }
+@keyframes drift {
+  from { translate: -300px 0; }
+  to   { translate: calc(100vw + 100px) 0; }
+}
+
+/* ---------- Pixel buttons (notched corners) ---------- */
+.hud nav a,
+.btn,
+.world-links a {
+  display: inline-block;
+  font-family: var(--font-pixel);
+  font-size: 0.62rem;
+  line-height: 1;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--surface);
+  padding: 10px 12px;
+  margin: 4px;
+  white-space: nowrap;
+  box-shadow: 0 -4px 0 0 var(--edge),
+    0 4px 0 0 var(--edge),
+    -4px 0 0 0 var(--edge),
+    4px 0 0 0 var(--edge);
+  transition: translate 0.12s, background 0.12s;
+}
+.hud nav a:hover,
+.btn:hover,
+.world-links a:hover { background: var(--butter); translate: 0 -3px; }
+.btn:active,
+.hud nav a:active,
+.world-links a:active { translate: 0 2px; }
+
+.btn.go {
+  font-size: 0.9rem;
+  padding: 16px 22px;
+  background: var(--coral);
+  box-shadow: 0 -4px 0 0 var(--edge),
+    0 4px 0 0 var(--edge),
+    -4px 0 0 0 var(--edge),
+    4px 0 0 0 var(--edge),
+    inset 0 -6px 0 0 var(--shade);
+}
+.btn.go:hover { background: var(--coral-hover); }
+
+/* ---------- Top bar ---------- */
+.hud {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--paper);
+  border-bottom: 4px solid var(--edge);
+}
+.hud-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-pixel);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.brand:hover { background: none; }
+.brand abbr { text-decoration: none; cursor: pointer; }
+.brand-star { width: 20px; height: 20px; shape-rendering: crispEdges; }
+.hud nav {
+  display: flex;
+  margin-left: auto;
+  overflow-x: auto;
+  padding: 8px 8px;
+}
+
+/* ---------- Hero ---------- */
+.hero {
+  position: relative;
+  z-index: 1;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 70px 20px 30px;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 30px;
+  align-items: center;
+}
+
+.title {
+  margin: 0 0 34px;
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  font-size: clamp(1.35rem, 5.4vw, 2.75rem);
+  line-height: 1.55;
+}
+.title span {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  color: var(--c, #fff);
+  --o: 3px;
+  text-shadow: var(--o) 0 var(--edge-shadow),
+    calc(var(--o) * -1) 0 var(--edge-shadow),
+    0 var(--o) var(--edge-shadow),
+    0 calc(var(--o) * -1) var(--edge-shadow),
+    var(--o) var(--o) var(--edge-shadow),
+    calc(var(--o) * -1) calc(var(--o) * -1) var(--edge-shadow),
+    var(--o) calc(var(--o) * -1) var(--edge-shadow),
+    calc(var(--o) * -1) var(--o) var(--edge-shadow),
+    7px 7px 0 var(--edge-shadow);
+  animation: bob 3.2s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.55s);
+}
+@keyframes bob {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -7px; }
+}
+
+.world-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 6px;
+  list-style: none;
+  margin: 26px 0 0;
+  padding: 0;
+}
+.world-links li:nth-child(1) a { background: var(--butter); }
+.world-links li:nth-child(2) a { background: var(--sky-2); }
+.world-links li:nth-child(3) a { background: var(--lilac); }
+.world-links li:nth-child(4) a { background: var(--mint); }
+.world-links a:hover { background: var(--surface); }
+
+.mascot {
+  position: relative;
+  justify-self: center;
+  width: min(300px, 70vw);
+  padding-top: 84px;
+}
+.robot {
+  display: block;
+  width: 100%;
+  height: auto;
+  animation: bob 2.6s ease-in-out infinite;
+}
+.mascot::after {
+  content: "";
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  bottom: -18px;
+  height: 12px;
+  background: var(--shade);
+}
+.bubble {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  translate: -42% 0;
+  margin: 0;
+  padding: 8px 18px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--surface);
+  border: 4px solid var(--edge);
+  border-radius: 20px;
+  box-shadow: 4px 4px 0 var(--edge-shadow);
+}
+.bubble::after {
+  content: "";
+  position: absolute;
+  left: 38px;
+  bottom: -13px;
+  width: 20px;
+  height: 20px;
+  background: var(--surface);
+  border-right: 4px solid var(--edge);
+  border-bottom: 4px solid var(--edge);
+  rotate: 45deg;
+}
+
+.star { position: absolute; width: 26px; height: 26px; shape-rendering: crispEdges; animation: twinkle 2.4s steps(2) infinite; }
+.st1 { top: 38px;  left: 52%; }
+.st2 { top: 190px; left: 4%;  animation-delay: -0.8s; }
+.st3 { top: 120px; right: 6%; animation-delay: -1.6s; width: 34px; height: 34px; }
+@keyframes twinkle { 50% { opacity: 0.2; } }
+
+/* ---------- Worlds ---------- */
+.world {
+  position: relative;
+  z-index: 1;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 70px 20px 20px;
+}
+.w1 { --wbg: #ffe66d; --a1: #ffe66d; --a2: #ffc8b8; --a3: #ffb3d1; }
+.w2 { --wbg: #a9dcf5; --a1: #8ecae6; --a2: #b9f0d5; --a3: #ffe66d; }
+.w3 { --wbg: #dcc9f5; --a1: #d9c7f0; --a2: #ffb3d1; --a3: #b9f0d5; }
+.w4 { --wbg: #b9f0d5; --a1: #b9f0d5; --a2: #ffc8b8; --a3: #8ecae6; }
+
+.world-head {
+  background: var(--wbg);
+  border: 4px solid var(--edge);
+  border-radius: 26px;
+  box-shadow: 8px 8px 0 var(--edge-shadow);
+  padding: 22px 26px 26px;
+  margin-bottom: 46px;
+}
+.world-title { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.badge {
+  font-family: var(--font-pixel);
+  font-size: 0.7rem;
+  line-height: 1;
+  color: var(--on-ink);
+  background: var(--ink);
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+.world-title h2 {
+  flex: 1 1 auto;
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  font-size: clamp(1.1rem, 3.2vw, 1.9rem);
+  line-height: 1.4;
+  text-shadow: 3px 3px 0 var(--title-glow);
+}
+
+/* Level map */
+.path {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: stop;
+}
+.path > li {
+  position: relative;
+  flex: 1 1 190px;
+  padding: 0 12px 4px;
+  text-align: center;
+  counter-increment: stop;
+}
+.path > li::before {
+  content: counter(stop);
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin: 0 auto 10px;
+  font-family: var(--font-pixel);
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 4px solid var(--edge);
+  border-radius: 50%;
+  box-shadow: 3px 3px 0 var(--edge-shadow);
+  position: relative;
+  z-index: 1;
+}
+.path > li::after {
+  content: "";
+  position: absolute;
+  top: 21px;
+  left: calc(50% + 32px);
+  right: calc(-50% + 32px);
+  border-top: 4px dashed var(--edge);
+}
+.path > li:last-child::after { display: none; }
+.path > li > span { font-weight: 600; line-height: 1.3; display: block; }
+
+.mini {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.mini li {
+  font-family: var(--font-code);
+  font-size: 1.3rem;
+  line-height: 1;
+  padding: 3px 9px;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 8px;
+}
+
+/* ---------- Slide grid ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 40px 34px;
+}
+.s-12 { grid-column: span 12; }
+.s-6  { grid-column: span 6; }
+
+/* ---------- Slide card ---------- */
+.slide {
+  --accent: var(--a1);
+  --tint: var(--surface-2);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--surface);
+  border: 4px solid var(--edge);
+  border-radius: 22px;
+  box-shadow: 8px 8px 0 var(--edge-shadow);
+  overflow: hidden;
+}
+.grid > .slide:nth-child(3n+2) { --accent: var(--a2); }
+.grid > .slide:nth-child(3n+3) { --accent: var(--a3); }
+@supports (color: color-mix(in srgb, red 10%, white)) {
+  .slide { --tint: color-mix(in srgb, var(--accent) 26%, var(--surface)); }
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: var(--accent);
+  border-bottom: 4px solid var(--edge);
+}
+.dots { display: flex; gap: 6px; flex: none; }
+.dots i { display: block; width: 12px; height: 12px; background: var(--surface); border: 3px solid var(--edge); }
+.bar h3 {
+  flex: 1;
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  font-size: clamp(0.72rem, 1.5vw, 0.95rem);
+  line-height: 1.7;
+}
+.ico { margin-right: 0.7em; }
+.no {
+  flex: none;
+  font-family: var(--font-pixel);
+  font-size: 0.6rem;
+  line-height: 1;
+  padding: 6px 7px;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 6px;
+}
+.world-title .no { background: var(--surface); }
+
+.body { flex: 1; padding: 20px 22px 24px; }
+.body > * + * { margin-top: 18px; }
+
+/* ---------- Topic blocks ---------- */
+.topics { display: grid; gap: 18px; grid-template-columns: 1fr; }
+.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.topic {
+  min-width: 0;
+  padding: 14px 16px 14px;
+  background: var(--tint);
+  border: 3px dashed var(--edge);
+  border-radius: 16px;
+}
+.topic > * + * { margin-top: 10px; }
+.topic p { margin: 0; }
+.topic > h4 {
+  display: inline-block;
+  margin: 0;
+  padding: 3px 12px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.3;
+  background: var(--accent);
+  border: 3px solid var(--edge);
+  border-radius: 14px;
+  rotate: -1deg;
+}
+.topic > h4 + * { margin-top: 12px; }
+.lead { margin: 0; font-weight: 600; font-size: 1.12rem; }
+.note {
+  margin: 20px 0 0;
+  padding-top: 12px;
+  font-weight: 500;
+  border-top: 3px dashed var(--edge);
+}
+.callout {
+  margin: 18px 0 0;
+  padding: 12px 16px;
+  font-weight: 600;
+  background: var(--butter);
+  border: 3px solid var(--edge);
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 var(--edge-shadow);
+}
+.plus { font-weight: 500; }
+
+/* ---------- Bullets ---------- */
+.bullets,
+.bullets ul { margin: 0; padding: 0; list-style: none; }
+.bullets li { position: relative; margin: 0.5em 0; padding-left: 28px; }
+.bullets > li:first-child { margin-top: 0; }
+.bullets > li:last-child { margin-bottom: 0; }
+.bullets li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: calc(0.775em - 6px);
+  width: 12px;
+  height: 12px;
+  background: var(--accent);
+  border: 3px solid var(--edge);
+}
+.bullets ul { margin: 0.35em 0 0.2em; }
+.bullets ul li { margin: 0.3em 0; }
+.bullets ul li::before {
+  width: 10px;
+  height: 10px;
+  top: calc(0.775em - 5px);
+  background: var(--surface);
+  border-radius: 50%;
+}
+
+/* ---------- Stickers ---------- */
+.sticker {
+  display: inline-block;
+  padding: 1px 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  background: var(--butter);
+  border: 3px solid var(--edge);
+  border-radius: 12px;
+  box-shadow: 3px 3px 0 var(--edge-shadow);
+  rotate: -1.2deg;
+}
+.sticker.warn { background: var(--coral); }
+.sticker.tip  { background: var(--mint); }
+
+/* ---------- Keyword chips ---------- */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+  padding: 4px 2px 6px;
+  list-style: none;
+}
+.chips li {
+  font-family: var(--font-code);
+  font-size: 1.45rem;
+  line-height: 1;
+  padding: 6px 11px 5px;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 10px;
+  box-shadow: 3px 3px 0 var(--edge-shadow);
+  transition: translate 0.12s, rotate 0.12s;
+}
+.chips li:nth-child(odd)  { rotate: -1.5deg; }
+.chips li:nth-child(even) { rotate: 1.2deg; }
+.chips li:hover { rotate: 0deg; translate: 0 -4px; }
+.chips.reserved li { background: var(--chip-res); }
+.chips.lit li { background: var(--mint); }
+.chips.avoid li { background: var(--peach); }
+
+/* ---------- Code windows ---------- */
+.code {
+  margin: 0;
+  overflow: hidden;
+  background: var(--surface-2);
+  border: 3px solid var(--edge);
+  border-radius: 14px;
+  box-shadow: 4px 4px 0 var(--edge-shadow);
+}
+.topic > .code { margin-top: 12px; }
+.code figcaption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  line-height: 1.4;
+  background: var(--sky-2);
+  border-bottom: 3px solid var(--edge);
+}
+.lights { display: flex; gap: 5px; }
+.lights i { display: block; width: 10px; height: 10px; background: var(--surface); border: 2px solid var(--edge); }
+.lights i:nth-child(1) { background: var(--coral); }
+.lights i:nth-child(2) { background: var(--butter); }
+.lights i:nth-child(3) { background: var(--mint); }
+.code pre {
+  margin: 0;
+  padding: 12px 16px;
+  overflow-x: auto;
+  font-family: var(--font-code);
+  font-size: 1.5rem;
+  line-height: 1.2;
+  white-space: pre;
+}
+.code pre code { padding: 0; font-size: inherit; background: none; border: 0; border-radius: 0; }
+.k { color: #d6336c; }
+.s { color: #2b8a3e; }
+.c { color: #667085; }
+.f { color: #1971c2; }
+.n { color: #e8590c; }
+
+.codes { display: grid; gap: 22px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* ---------- Input and output ---------- */
+.io {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+}
+.io::before {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 50%;
+  border-top: 4px dashed var(--edge);
+}
+.io-card {
+  position: relative;
+  z-index: 1;
+  padding: 16px 20px;
+  background: var(--tint);
+  border: 3px solid var(--edge);
+  border-radius: 18px;
+  box-shadow: 5px 5px 0 var(--edge-shadow);
+}
+.io-card h4 { margin: 0 0 4px; font-size: 1.2rem; }
+.io-card p { margin: 0; }
+.dom-node {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  margin: 0 -10px;
+  font-family: var(--font-pixel);
+  font-size: 0.85rem;
+  background: var(--butter);
+  border: 4px solid var(--edge);
+  border-radius: 50%;
+  box-shadow: 4px 4px 0 var(--edge-shadow);
+}
+
+/* ---------- Footer ---------- */
+.foot {
+  position: relative;
+  z-index: 1;
+  padding: 70px 20px 90px;
+  text-align: center;
+}
+.clear {
+  margin: 0 0 30px;
+  font-family: var(--font-pixel);
+  font-size: clamp(1rem, 3vw, 1.6rem);
+  color: var(--coral);
+  text-shadow: 3px 0 var(--edge-shadow), -3px 0 var(--edge-shadow), 0 3px var(--edge-shadow), 0 -3px var(--edge-shadow),
+    3px 3px var(--edge-shadow), -3px -3px var(--edge-shadow), 3px -3px var(--edge-shadow), -3px 3px var(--edge-shadow),
+    6px 6px 0 var(--edge-shadow);
+}
+
+/* ---------- In simple words ---------- */
+.simple {
+  margin-top: 22px;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 var(--edge-shadow);
+  overflow: hidden;
+}
+.world-head .simple { --accent: var(--wbg); margin-top: 28px; text-align: left; }
+.simple > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  font-family: var(--font-pixel);
+  font-size: 0.62rem;
+  line-height: 1.6;
+  color: var(--on-ink);
+  background: var(--ink);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.simple > summary::-webkit-details-marker { display: none; }
+.simple > summary::before { content: ""; flex: none; width: 10px; height: 10px; background: var(--butter); }
+.simple > summary::after { content: "-"; margin-left: auto; }
+.simple:not([open]) > summary::after { content: "+"; }
+.simple > summary:focus-visible { outline: 4px solid var(--coral); outline-offset: -4px; }
+.simple-body { padding: 16px 18px 18px; font-size: 1.05rem; }
+.simple-body > * + * { margin-top: 14px; }
+.simple-body p { margin: 0; }
+.analogy,
+.nb {
+  padding: 10px 14px;
+  border: 3px solid var(--edge);
+  border-radius: 14px;
+}
+.analogy { background: var(--butter); box-shadow: 3px 3px 0 var(--edge-shadow); }
+.nb { background: var(--mint); }
+.simple .code figcaption { text-transform: none; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 980px) {
+  .hero { grid-template-columns: 1fr; padding-top: 50px; }
+  .mascot { order: -1; }
+  .cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .codes { grid-template-columns: 1fr; }
+  .s-6 { grid-column: span 12; }
+}
+
+@media (max-width: 680px) {
+  body { font-size: 1.05rem; }
+  .hud-inner { gap: 10px; padding: 8px 14px; }
+  .world { padding: 54px 14px 10px; }
+  .hero { padding-left: 14px; padding-right: 14px; }
+  .title span { --o: 2px; }
+  .cols-2, .cols-3 { grid-template-columns: 1fr; }
+  .world-head { padding: 18px 16px 20px; box-shadow: 6px 6px 0 var(--edge-shadow); }
+  .path > li { flex-basis: 100%; padding-bottom: 14px; }
+  .path > li::after { display: none; }
+  .grid { gap: 32px; }
+  .body { padding: 16px 16px 20px; }
+  .dots { display: none; }
+  .io { grid-template-columns: 1fr; gap: 16px; justify-items: center; }
+  .io::before { left: 50%; right: auto; top: 8%; bottom: 8%; border-top: 0; border-left: 4px dashed var(--edge); }
+  .io-card { width: 100%; }
+  .dom-node { margin: 0; }
+  .st1, .st2 { display: none; }
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  .cloud { translate: 12vw 0; }
+}
+
+@media (max-width: 680px) {
+  .simple-body { padding: 14px 14px 16px; }
+  .simple > summary { font-size: 0.55rem; }
+}
+
+
+/* ==========================================================
+   Study hub additions
+   Hub page, tables, CSS mini-charts, question cards.
+   Everything above this line is the original MAD-II theme.
+   ========================================================== */
+
+/* ---------- Extra column layout ---------- */
+.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* ---------- Navigation extras ---------- */
+.hud nav a.hub-link { background: var(--peach); }
+.hud nav a.hub-link:hover { background: var(--butter); }
+.foot .btn { margin: 4px 6px; }
+
+/* ---------- Hub landing page ---------- */
+.eyebrow {
+  display: inline-block;
+  margin: 0 0 20px;
+  padding: 8px 10px;
+  font-family: var(--font-pixel);
+  font-size: 0.6rem;
+  line-height: 1.4;
+  color: var(--on-ink);
+  background: var(--ink);
+  border-radius: 8px;
+}
+.lede { margin: -8px 0 26px; max-width: 36ch; font-size: 1.3rem; font-weight: 500; line-height: 1.4; }
+.wh { --wbg: #ffc8b8; --a1: #ffe66d; --a2: #a9dcf5; --a3: #d9c7f0; }
+
+.subject .body { display: flex; flex-direction: column; gap: 14px; }
+.subject .body > * + * { margin-top: 0; }
+.subject .world-links { margin: 0; }
+.subject .push { margin-top: auto; padding-top: 6px; }
+.subject .push .btn { margin-left: 4px; }
+.slide.ghost { background: transparent; border-style: dashed; box-shadow: none; }
+.slide.ghost .bar { background: transparent; border-bottom-style: dashed; }
+.slide.ghost .body { color: var(--muted); }
+
+/* ---------- Tables ---------- */
+.tbl-wrap { overflow-x: auto; border-radius: 14px; }
+.tbl {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 14px;
+  overflow: hidden;
+  font-size: 1rem;
+}
+.tbl.min { min-width: 520px; }
+.tbl.min-lg { min-width: 680px; }
+.tbl th,
+.tbl td {
+  padding: 9px 12px;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 2px dashed var(--rule);
+}
+.tbl thead th {
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  font-size: 0.58rem;
+  line-height: 1.7;
+  background: var(--accent);
+  border-bottom: 3px solid var(--edge);
+}
+.tbl tbody tr:last-child th,
+.tbl tbody tr:last-child td { border-bottom: 0; }
+.tbl tbody th { font-weight: 700; }
+.tbl .num { text-align: right; font-variant-numeric: tabular-nums; }
+.tbl tr.hl th,
+.tbl tr.hl td { background: var(--hl); }
+.tbl tfoot th,
+.tbl tfoot td { border-top: 3px solid var(--edge); border-bottom: 0; font-weight: 700; background: var(--tint); }
+.tbl .cico { width: 38px; height: 38px; vertical-align: middle; }
+.tbl .tricky th,
+.tbl .tricky td { background: var(--tricky); }
+
+/* Same table, two looks (data-ink principle) */
+.tbl.heavy { background: var(--heavy-bg); border-radius: 0; }
+.tbl.heavy th,
+.tbl.heavy td { border: 2px solid var(--edge); }
+.tbl.heavy thead th { background: var(--heavy-head); font-family: var(--font-body); font-size: 0.95rem; font-weight: 700; }
+.tbl.plain { border: 0; background: transparent; border-radius: 0; }
+.tbl.plain th,
+.tbl.plain td { border: 0; padding: 6px 12px; }
+.tbl.plain thead th {
+  background: none;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 700;
+  border-bottom: 2px solid var(--edge);
+}
+
+/* ---------- Chart icons ---------- */
+.cico { width: 46px; height: 46px; flex: none; display: inline-block; vertical-align: middle; }
+
+/* ---------- CSS mini charts ---------- */
+.mchart { margin: 0; --h: 150px; }
+.mchart > figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.plot { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; padding: 24px 0 32px; }
+.yt {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: var(--h);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: right;
+  font-family: var(--font-code);
+  font-size: 1.15rem;
+  line-height: 1;
+}
+.area {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  height: var(--h);
+  padding: 0 8px;
+  border-left: 3px solid var(--edge);
+  border-bottom: 3px solid var(--edge);
+}
+.mb {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  height: calc(var(--v) * 100%);
+  background: var(--sky-2);
+  border: 3px solid var(--edge);
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+}
+.mb.hl { background: var(--coral); }
+.mb.alt { background: var(--butter); }
+.mb.good { background: var(--mint); }
+.mb b,
+.mb em {
+  position: absolute;
+  left: 50%;
+  font-family: var(--font-code);
+  font-size: 1.15rem;
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1;
+  white-space: nowrap;
+}
+.mb b { bottom: 100%; translate: -50% -4px; }
+.mb em { top: 100%; translate: -50% 9px; }
+.mchart.nolabels .mb b { display: none; }
+
+.mchart.dense { --h: 190px; }
+.mchart.dense .plot { padding-bottom: 96px; }
+.mchart.dense .area { gap: 5px; padding: 0 5px; }
+.mchart.dense .mb { border-width: 2px; border-bottom: 0; border-radius: 4px 4px 0 0; }
+.mchart.dense .mb b { display: none; }
+.mchart.dense .mb em {
+  writing-mode: vertical-rl;
+  rotate: 180deg;
+  translate: -50% 8px;
+  font-size: 1.05rem;
+}
+.chart-scroll { overflow-x: auto; padding-bottom: 4px; }
+.chart-scroll > .mchart { min-width: 520px; }
+
+.sw {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  vertical-align: -2px;
+  background: var(--sky-2);
+  border: 3px solid var(--edge);
+}
+.sw.hl { background: var(--coral); }
+.sw.alt { background: var(--butter); }
+
+/* Pie made from a gradient */
+.pie {
+  width: 140px;
+  aspect-ratio: 1;
+  flex: none;
+  border: 3px solid var(--edge);
+  border-radius: 50%;
+}
+.pie.tilt {
+  transform: perspective(260px) rotateX(58deg);
+  transform-origin: 50% 50%;
+  margin: -18px 0 -6px;
+  box-shadow: 0 20px 0 0 #555873, 0 20px 0 3px var(--edge-shadow);
+}
+
+/* ---------- Misleading vs honest ---------- */
+.versus { display: grid; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.vbox {
+  min-width: 0;
+  padding: 12px 14px 14px;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 var(--edge-shadow);
+}
+.vbox > * + * { margin-top: 10px; }
+.vbox p { margin: 0; }
+.verdict {
+  display: inline-block;
+  padding: 6px 8px;
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  line-height: 1.4;
+  border: 3px solid var(--edge);
+  border-radius: 8px;
+}
+.verdict.bad  { background: var(--coral); }
+.verdict.good { background: var(--mint); }
+
+/* ---------- Three-step flow ---------- */
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 38px;
+  margin: 0;
+  padding: 10px 0 0;
+  list-style: none;
+  counter-reset: st;
+}
+.steps > li {
+  position: relative;
+  counter-increment: st;
+  padding: 18px 16px 14px;
+  background: var(--tint);
+  border: 3px solid var(--edge);
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 var(--edge-shadow);
+}
+.steps > li::before {
+  content: "Step " counter(st);
+  position: absolute;
+  top: -14px;
+  left: 14px;
+  padding: 6px 8px;
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  line-height: 1;
+  color: var(--on-ink);
+  background: var(--ink);
+  border-radius: 6px;
+}
+.steps > li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -27px;
+  width: 16px;
+  height: 16px;
+  border-top: 5px solid var(--edge);
+  border-right: 5px solid var(--edge);
+  rotate: 45deg;
+  translate: 0 -50%;
+}
+.steps h4 { margin: 0 0 8px; font-size: 1.15rem; line-height: 1.3; }
+.steps p { margin: 0; }
+.steps .bullets { margin-top: 6px; }
+
+/* ---------- Definition chain ---------- */
+.chain {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: center;
+}
+.chain .key {
+  width: min(100%, 540px);
+  padding: 10px 16px;
+  font-weight: 700;
+  background: var(--tint);
+  border: 3px solid var(--edge);
+  border-radius: 14px;
+  box-shadow: 3px 3px 0 var(--edge-shadow);
+}
+.chain .join {
+  padding: 2px 0;
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  line-height: 1.5;
+}
+
+/* ---------- Data-type nesting ---------- */
+.dbox {
+  min-width: 0;
+  padding: 14px 16px 16px;
+  background: var(--tint);
+  border: 3px solid var(--edge);
+  border-radius: 16px;
+}
+.dbox > h4 { margin: 0 0 10px; font-size: 1.1rem; line-height: 1.3; }
+.dbox p { margin: 0; }
+.dbox .dbox { background: var(--surface); box-shadow: 3px 3px 0 var(--edge-shadow); }
+.dbox .dbox .dbox { background: var(--tint); }
+.dgrid { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dgrid > * + * { margin-top: 0; }
+.ex { margin-top: 8px !important; font-family: var(--font-code); font-size: 1.3rem; line-height: 1.15; }
+
+/* ---------- Big numbers ---------- */
+.stat { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); text-align: center; }
+.stat > div { padding: 14px 10px; background: var(--tint); border: 3px solid var(--edge); border-radius: 16px; }
+.stat b {
+  display: block;
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  font-size: clamp(1.3rem, 4.4vw, 2.2rem);
+  line-height: 1.3;
+}
+.stat span { display: block; font-weight: 600; }
+
+/* ---------- Slide question and answer ---------- */
+.ask,
+.ans {
+  padding: 12px 16px;
+  border: 3px solid var(--edge);
+  border-radius: 16px;
+  font-weight: 500;
+}
+.ask { background: var(--butter); box-shadow: 4px 4px 0 var(--edge-shadow); font-weight: 600; }
+.ans { background: var(--mint); }
+.ask::before,
+.ans::before {
+  display: block;
+  margin-bottom: 6px;
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.ask::before { content: "Slide asks"; }
+.ans::before { content: "Answer"; }
+.ask[data-label]::before,
+.ans[data-label]::before { content: attr(data-label); }
+.ask p, .ans p { margin: 0; }
+.ask > * + *, .ans > * + * { margin-top: 8px; }
+
+/* ---------- Example cards (form choice) ---------- */
+.exs {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.exs li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  background: var(--tint);
+  border: 3px solid var(--edge);
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 var(--edge-shadow);
+}
+.exs .cico { width: 56px; height: 56px; }
+.exs h4 { margin: 0; font-size: 1.05rem; line-height: 1.3; }
+.exs p { margin: 0; font-size: 0.98rem; }
+.exs .type {
+  align-self: flex-start;
+  padding: 5px 7px;
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  line-height: 1.5;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 8px;
+}
+
+/* ---------- Practice questions ---------- */
+.qnav { display: flex; flex-wrap: wrap; gap: 9px; margin: 26px 0 0; padding: 0; list-style: none; }
+.qnav a {
+  display: block;
+  padding: 9px 10px;
+  font-family: var(--font-pixel);
+  font-size: 0.6rem;
+  line-height: 1;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 8px;
+  box-shadow: 3px 3px 0 var(--edge-shadow);
+}
+.qnav a:hover { background: var(--butter); translate: 0 -2px; }
+.qnav a.tricky { background: var(--peach); }
+.qnav-key { margin: 14px 0 0; font-size: 0.95rem; font-weight: 500; }
+
+.qtag {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 7px 9px;
+  font-family: var(--font-pixel);
+  font-size: 0.6rem;
+  line-height: 1;
+  color: var(--on-ink);
+  vertical-align: middle;
+  background: var(--ink);
+  border-radius: 7px;
+}
+.qtext { margin: 0; font-weight: 600; font-size: 1.1rem; }
+.qbox > * + * { margin-top: 12px; }
+.qbox .opts { margin-top: 12px; }
+
+.opts { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.opts.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.opts li {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 12px;
+  line-height: 1.35;
+}
+.opts li > b {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-top: -1px;
+  font-family: var(--font-pixel);
+  font-size: 0.6rem;
+  font-weight: 400;
+  line-height: 1;
+  background: var(--accent);
+  border: 3px solid var(--edge);
+  border-radius: 6px;
+}
+.opts li.ok { padding-right: 40px; background: var(--mint); }
+.opts li.ok::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 15px;
+  width: 8px;
+  height: 15px;
+  border-right: 4px solid var(--edge);
+  border-bottom: 4px solid var(--edge);
+  rotate: 45deg;
+  translate: 0 -70%;
+}
+
+.answer-line { font-weight: 700; }
+.answer-line .pill {
+  display: inline-block;
+  margin: 0 2px;
+  padding: 1px 10px;
+  background: var(--mint);
+  border: 3px solid var(--edge);
+  border-radius: 10px;
+}
+
+/* ---------- Responsive additions ---------- */
+@media (max-width: 980px) {
+  .cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .steps { grid-template-columns: 1fr; gap: 40px; }
+  .steps > li:not(:last-child)::after {
+    top: auto;
+    right: auto;
+    bottom: -29px;
+    left: 50%;
+    rotate: 135deg;
+    translate: -50% 0;
+  }
+}
+
+@media (max-width: 680px) {
+  .cols-4,
+  .versus,
+  .dgrid,
+  .opts.two { grid-template-columns: 1fr; }
+  .stat { gap: 10px; }
+  .lede { font-size: 1.15rem; }
+  .qnav a { padding: 8px 9px; font-size: 0.55rem; }
+}
+
+/* ---------- Spacing fixes ---------- */
+/* `.simple-body p { margin: 0}` outranks `.simple-body > * + *`, so paragraphs after
+   another element had no gap. Restore the intended 14px rhythm. */
+.simple-body > * + p { margin-top: 14px; }
+.tbl-wrap + p,
+.tbl-wrap + .note-line { margin-top: 12px; }
+.note-line .sticker { display: block; width: fit-content; margin-bottom: 8px; }
+
+.grid.top > .slide { align-self: start; }
+.tbl-wrap + .mchart { margin-top: 16px; }
+.mb em { text-align: center; }
+.versus .mb b,
+.versus .mb em { font-size: 1rem; }
+.tbl.tight th,
+.tbl.tight td { padding: 8px 8px; }
+.tbl.tight { font-size: 0.95rem; }
+.qtext + .opts,
+.qtext + .sticker,
+.qtext + .qmeta { margin-top: 10px; }
+.sticker + .opts { margin-top: 10px; }
+.ans .answer-line { margin-top: 12px; }
+
+/* Phones: turn wide tables into stacked cards so no column hides off-screen */
+@media (max-width: 680px) {
+  .tbl.stack { min-width: 0; }
+  .tbl.stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .tbl.stack,
+  .tbl.stack tbody,
+  .tbl.stack tr,
+  .tbl.stack th,
+  .tbl.stack td { display: block; }
+  .tbl.stack tr { padding: 8px 0 10px; border-bottom: 3px solid var(--edge); }
+  .tbl.stack tbody tr:last-child { border-bottom: 0; }
+  .tbl.stack th,
+  .tbl.stack td { padding: 4px 14px; border: 0; }
+  .tbl.stack tbody tr:last-child th,
+  .tbl.stack tbody tr:last-child td { border-bottom: 0; }
+  .tbl.stack tbody th { font-size: 1.1rem; }
+  .tbl.stack td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    font-family: var(--font-pixel);
+    font-size: 0.5rem;
+    line-height: 1.6;
+    opacity: 0.65;
+  }
+}
+
+/* ==========================================================
+   Business Analytics page: calm layout, part tabs, lesson list, quiz
+   Everything is scoped to  body.ba  so MAD-II and the hub keep their look.
+   ========================================================== */
+
+.ba {
+  --good: #1f7a50;
+  --bad: #c0392b;
+  --amber: #c98a00;
+}
+:root[data-theme="dark"] .ba {
+  --good: #6fe0a6;
+  --bad: #ff8d8d;
+  --amber: #ffd04a;
+}
+.ba .w1 { --wacc: var(--butter);  --wstrong: #c98a00; }
+.ba .w2 { --wacc: var(--sky-2);   --wstrong: #2b83b8; }
+.ba .w3 { --wacc: var(--lilac);   --wstrong: #7d55c9; }
+:root[data-theme="dark"] .ba .w1 { --wstrong: #ffd04a; }
+:root[data-theme="dark"] .ba .w2 { --wstrong: #6cc3f0; }
+:root[data-theme="dark"] .ba .w3 { --wstrong: #b79cf5; }
+
+.ba .sky { display: none; }
+
+/* ---------- Top bar: current part ---------- */
+.ba .hud nav a[aria-current="true"] { background: var(--butter); }
+.ba .hud nav a[aria-current="true"]::after { content: none; }
+
+/* ---------- Hero, smaller ---------- */
+.ba .hero { padding: 40px 20px 6px; gap: 20px; }
+.ba .hero .title { margin-bottom: 22px; }
+.ba .lede { margin-bottom: 0; }
+.ba .mascot { width: min(200px, 56vw); padding-top: 74px; }
+.ba .bubble { font-size: 0.95rem; padding: 6px 14px; }
+.ba .st2 { display: none; }
+
+/* ---------- Part picker ---------- */
+.parts {
+  position: relative;
+  z-index: 1;
+  max-width: 1180px;
+  margin: 18px auto 0;
+  padding: 0 20px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.part {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "n t" "n d" "n c";
+  column-gap: 14px;
+  row-gap: 2px;
+  align-items: start;
+  padding: 16px 18px;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--surface);
+  border: 2px solid var(--edge);
+  border-radius: 18px;
+  transition: translate 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.part:hover { background: var(--surface-2); translate: 0 -2px; }
+.part-n {
+  grid-area: n;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  font-family: var(--font-pixel);
+  font-size: 0.8rem;
+  background: var(--pacc);
+  border: 2px solid var(--edge);
+  border-radius: 12px;
+}
+.part-t { grid-area: t; font-size: 1.15rem; font-weight: 700; line-height: 1.25; }
+.part-d { grid-area: d; font-size: 0.95rem; line-height: 1.4; color: var(--muted); }
+.part-c { grid-area: c; margin-top: 6px; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink); opacity: 0.85; }
+.part[aria-current="true"] {
+  background: color-mix(in srgb, var(--pacc) 38%, var(--surface));
+  box-shadow: 0 5px 0 var(--edge-shadow);
+  translate: 0 -3px;
+}
+
+/* ---------- A part = lesson list + lessons ---------- */
+.ba .world {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  column-gap: 40px;
+  align-items: start;
+  padding: 34px 20px 24px;
+}
+.js .world[data-tab]:not(.on) { display: none; }
+.ba .w3 { grid-template-columns: minmax(0, 860px); justify-content: center; }
+
+.ba .rail { grid-column: 1; grid-row: 1 / span 3; position: sticky; top: 96px; max-height: calc(100vh - 118px); overflow-y: auto; padding-right: 6px; }
+.ba .world-head,
+.ba .grid { grid-column: 2; }
+.ba .w3 .world-head,
+.ba .w3 .grid { grid-column: 1; }
+
+.rail-title { margin: 0 0 10px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+.rail ol { margin: 0; padding: 0; list-style: none; counter-reset: rl; }
+.rail li { margin: 0; }
+.rail .grp {
+  margin: 18px 0 6px;
+  padding-left: 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--wstrong) 55%, var(--ink));
+}
+.rail .grp:first-child { margin-top: 0; }
+.rail li:not(.grp) { counter-increment: rl; }
+.rail a {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 7px 10px;
+  font-size: 0.95rem;
+  line-height: 1.3;
+  color: var(--ink);
+  text-decoration: none;
+  border-radius: 10px;
+}
+.rail a::before {
+  content: counter(rl);
+  flex: none;
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  margin-top: -1px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  background: var(--surface);
+  border: 2px solid var(--edge);
+  border-radius: 8px;
+}
+.rail a:hover { background: var(--surface-2); }
+.rail a[aria-current="true"] { background: color-mix(in srgb, var(--wacc) 40%, var(--surface)); font-weight: 700; }
+.rail a[aria-current="true"]::before { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+
+/* ---------- Part header ---------- */
+.ba .world-head {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 26px;
+  padding: 28px 30px 26px;
+  background: var(--surface);
+  border: 2px solid var(--edge);
+  border-radius: 22px;
+  box-shadow: 0 5px 0 var(--edge-shadow);
+}
+.ba .world-head::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 8px; background: var(--wacc); }
+.ba .world-title { gap: 12px; }
+.ba .badge {
+  padding: 5px 12px;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--wacc) 55%, var(--surface));
+  border: 2px solid var(--edge);
+  border-radius: 999px;
+}
+.ba .world-title h2 { font-family: var(--font-body); font-weight: 700; font-size: clamp(1.6rem, 3.4vw, 2.2rem); line-height: 1.2; text-shadow: none; }
+.world-intro { margin-top: 16px; font-size: 1.08rem; }
+.world-intro > * + * { margin-top: 12px; }
+.world-intro p { margin: 0; }
+
+/* ---------- Lesson cards ---------- */
+.ba .grid { display: flex; flex-direction: column; gap: 28px; counter-reset: lesson; }
+.ba .slide,
+.ba .grid > .slide:nth-child(n) {
+  --accent: var(--wacc);
+  --tint: color-mix(in srgb, var(--wacc) 16%, var(--surface));
+  background: var(--surface);
+  border: 2px solid var(--edge);
+  border-radius: 22px;
+  box-shadow: 0 5px 0 var(--edge-shadow);
+}
+.ba .bar {
+  gap: 14px;
+  padding: 16px 24px;
+  background: transparent;
+  border-bottom: 2px solid var(--rule);
+}
+.ba .bar::before {
+  counter-increment: lesson;
+  content: counter(lesson);
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  font-family: var(--font-pixel);
+  font-size: 0.7rem;
+  background: var(--wacc);
+  border: 2px solid var(--edge);
+  border-radius: 50%;
+}
+.ba .bar h3 { font-family: var(--font-body); font-weight: 700; font-size: clamp(1.1rem, 2.2vw, 1.35rem); line-height: 1.3; }
+.ba .ico { margin-right: 0.45em; }
+.src { flex: none; font-size: 0.82rem; font-weight: 600; color: var(--muted); text-align: right; }
+.ba .body { padding: 22px 26px 28px; }
+.ba .body > * + * { margin-top: 20px; }
+
+.sec-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 -6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.sec-label::after { content: ""; flex: 1; height: 2px; background: var(--rule); }
+
+/* parallel blocks: plain columns with a thin divider, not boxes in boxes */
+.ba .topics { gap: 28px 36px; }
+.ba .topic { padding: 0; background: none; border: 0; border-radius: 0; }
+.ba .topics.cols-2 > .topic:not(:first-child),
+.ba .topics.cols-3 > .topic:not(:first-child),
+.ba .topics.cols-4 > .topic:not(:first-child) { padding-left: 34px; border-left: 2px solid var(--rule); }
+.ba .topic > h4 {
+  position: relative;
+  display: block;
+  margin: 0 0 12px;
+  padding: 0 0 10px;
+  font-size: 1.08rem;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  rotate: none;
+}
+.ba .topic > h4::after { content: ""; position: absolute; left: 0; bottom: 0; width: 38px; height: 4px; border-radius: 2px; background: var(--wstrong); }
+.ba .topic > h4 + * { margin-top: 0; }
+.ba .topic > .ask,
+.ba .topic > .ans { margin-top: 14px; }
+
+.ba .lead { font-size: 1.15rem; }
+.ba .note { border-top: 2px solid var(--rule); }
+
+/* bullets: small coloured squares */
+.ba .bullets li { padding-left: 22px; }
+.ba .bullets li::before { left: 2px; top: calc(0.775em - 4px); width: 8px; height: 8px; background: var(--wstrong); border: 0; border-radius: 2px; }
+.ba .bullets ul li::before { width: 7px; height: 7px; top: calc(0.775em - 3.5px); background: none; border: 2px solid var(--wstrong); border-radius: 50%; }
+
+/* slide question / answer */
+.ba .ask,
+.ba .ans {
+  padding: 14px 18px 14px 20px;
+  background: color-mix(in srgb, var(--wacc) 24%, var(--surface));
+  border: 0;
+  border-left: 5px solid var(--wstrong);
+  border-radius: 6px 14px 14px 6px;
+  box-shadow: none;
+}
+.ba .ans { background: color-mix(in srgb, var(--mint) 50%, var(--surface)); border-left-color: var(--good); }
+.ba .ask::before,
+.ba .ans::before {
+  margin-bottom: 4px;
+  font-family: var(--font-body);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.ba .ans::before { color: var(--good); }
+
+/* stickers and chips: quiet pills */
+.ba .sticker {
+  padding: 2px 12px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  border: 2px solid var(--edge);
+  border-radius: 999px;
+  box-shadow: none;
+  rotate: none;
+}
+.ba .chips { gap: 10px; padding: 2px 0 4px; }
+.ba .chips li { padding: 4px 12px 3px; font-size: 1.3rem; border-width: 2px; border-radius: 10px; box-shadow: none; rotate: none !important; }
+.ba .chips li:hover { translate: none; }
+
+/* "In simple words" */
+.ba .simple {
+  margin-top: 26px;
+  background: color-mix(in srgb, var(--wacc) 15%, var(--surface));
+  border: 0;
+  border-radius: 18px;
+  box-shadow: none;
+}
+.ba .simple > summary {
+  gap: 10px;
+  padding: 15px 22px;
+  font-family: var(--font-body);
+  font-size: 1.02rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ink);
+  background: none;
+}
+.ba .simple > summary::before { content: "\1F4A1"; width: auto; height: auto; background: none; font-size: 1.15rem; }
+.ba .simple > summary::after,
+.ba .simple:not([open]) > summary::after {
+  content: "";
+  width: 10px;
+  height: 10px;
+  margin-left: auto;
+  border-right: 3px solid currentColor;
+  border-bottom: 3px solid currentColor;
+  rotate: 45deg;
+  translate: 0 -3px;
+  transition: rotate 0.2s;
+}
+.ba .simple[open] > summary::after { rotate: 225deg; translate: 0 3px; }
+.ba .simple-body { padding: 0 24px 24px; font-size: 1.07rem; }
+.ba .simple-body > * + * { margin-top: 16px; }
+.ba .simple-body > * + p { margin-top: 16px; }
+.ba .analogy,
+.ba .nb {
+  padding: 13px 18px;
+  border: 0;
+  border-left: 5px solid var(--amber);
+  border-radius: 6px 14px 14px 6px;
+  box-shadow: none;
+}
+.ba .analogy { background: color-mix(in srgb, var(--butter) 42%, var(--surface)); }
+.ba .nb { background: color-mix(in srgb, var(--mint) 50%, var(--surface)); border-left-color: var(--good); }
+.ba .callout { padding: 12px 18px; border: 0; border-left: 5px solid var(--amber); border-radius: 6px 14px 14px 6px; box-shadow: none; }
+
+/* tables */
+.ba .tbl { border-width: 2px; border-radius: 14px; }
+.ba .tbl thead th {
+  padding: 11px 12px;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  line-height: 1.3;
+  background: color-mix(in srgb, var(--wacc) 45%, var(--surface));
+  border-bottom: 2px solid var(--edge);
+}
+.ba .tbl tfoot th,
+.ba .tbl tfoot td { border-top-width: 2px; }
+.ba .tbl.heavy { border-radius: 0; }
+.ba .tbl.heavy thead th { font-size: 0.95rem; letter-spacing: 0; text-transform: none; background: var(--heavy-head); }
+.ba .tbl.plain thead th { background: none; font-size: 0.95rem; letter-spacing: 0; text-transform: none; border-bottom: 2px solid var(--edge); }
+
+/* side-by-side examples and flow boxes */
+.ba .vbox,
+.ba .dbox,
+.ba .stat > div,
+.ba .exs li,
+.ba .steps > li,
+.ba .chain .key { border-width: 2px; box-shadow: none; }
+.ba .vbox { border-radius: 16px; }
+.ba .dbox .dbox { box-shadow: none; }
+.ba .verdict {
+  padding: 3px 12px;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border-width: 2px;
+  border-radius: 999px;
+}
+.ba .exs .type {
+  padding: 2px 10px;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border-width: 2px;
+  border-radius: 999px;
+}
+.ba .stat b { font-family: var(--font-body); font-weight: 700; }
+.ba .steps > li::before { padding: 4px 10px; font-family: var(--font-body); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; border-radius: 999px; }
+.ba .steps > li:not(:last-child)::after { border-width: 4px; }
+.ba .chain .join { font-family: var(--font-body); font-size: 0.82rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.ba .area { border-left-width: 2px; border-bottom-width: 2px; }
+.ba .mb { border-width: 2px; }
+.ba .sw { border-width: 2px; }
+.ba .qtag { font-family: var(--font-body); font-size: 0.8rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; }
+
+/* ==========================================================
+   Quiz
+   ========================================================== */
+.ba .quiz .body { padding: 24px 26px 30px; }
+.qz { display: flex; flex-direction: column; gap: 20px; }
+.qz-top { display: grid; gap: 10px; }
+.qz-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; font-weight: 700; }
+.qz-skill {
+  padding: 3px 14px;
+  font-size: 0.86rem;
+  background: color-mix(in srgb, var(--wacc) 45%, var(--surface));
+  border: 2px solid var(--edge);
+  border-radius: 999px;
+}
+.qz-prog { height: 12px; overflow: hidden; background: var(--surface-2); border: 2px solid var(--edge); border-radius: 999px; }
+.qz-prog i { display: block; height: 100%; background: var(--wstrong); border-radius: 999px; transition: width 0.3s; }
+.qz-q { margin: 6px 0 0; font-family: var(--font-body); font-size: clamp(1.2rem, 2.6vw, 1.45rem); font-weight: 700; line-height: 1.35; }
+.qz-q:focus { outline: none; }
+.qz-hint { margin: -8px 0 0; font-size: 0.95rem; font-weight: 600; color: var(--muted); }
+.qz-chart {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 12px 20px 12px 14px;
+  background: var(--surface-2);
+  border: 2px dashed var(--edge);
+  border-radius: 16px;
+}
+.qz-chart .cico { width: 54px; height: 54px; }
+.qz-chart strong { font-size: 1.4rem; line-height: 1.2; }
+.qz-ctx { margin: 0; padding: 12px; background: #fff; border: 2px solid var(--edge); border-radius: 16px; }
+.qz-ctx img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.qz-ctx figcaption { margin-top: 8px; font-size: 0.88rem; font-weight: 600; text-align: center; color: #3a3d5c; }
+
+.qz-opts { display: grid; gap: 10px; }
+.qz-opts.imgs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.qz-opt {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  line-height: 1.35;
+  background: var(--surface);
+  border: 2px solid var(--edge);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, translate 0.1s;
+}
+.qz-opt:hover { background: var(--surface-2); translate: 0 -1px; }
+.qz-opt input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.qz-opt:has(input:focus-visible) { outline: 3px solid var(--coral); outline-offset: 2px; }
+.line17 { color: var(--ink); }
+.qz-key {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  font-weight: 700;
+  background: var(--surface-2);
+  border: 2px solid var(--edge);
+  border-radius: 50%;
+}
+.qz-opts.multi .qz-key { border-radius: 9px; }
+.qz-opt.sel { background: color-mix(in srgb, var(--wacc) 30%, var(--surface)); border-color: var(--wstrong); box-shadow: inset 0 0 0 2px var(--wstrong); }
+.qz-opt.sel .qz-key { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.qz-opt.ok { background: color-mix(in srgb, var(--mint) 55%, var(--surface)); border-color: var(--good); box-shadow: inset 0 0 0 2px var(--good); }
+.qz-opt.bad { background: color-mix(in srgb, var(--coral) 26%, var(--surface)); border-color: var(--bad); box-shadow: inset 0 0 0 2px var(--bad); }
+.qz-opt.miss { background: color-mix(in srgb, var(--mint) 24%, var(--surface)); border: 2px dashed var(--good); }
+.qz-opt.ok .qz-key { background: var(--good); color: var(--surface); border-color: var(--good); }
+.qz-opt.bad .qz-key { background: var(--bad); color: var(--surface); border-color: var(--bad); }
+.qz-opt:has(input:disabled) { cursor: default; }
+.qz-opt:has(input:disabled):hover { translate: none; }
+.qz-tag {
+  margin-left: auto;
+  flex: none;
+  padding: 1px 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background: var(--surface);
+  border: 2px solid currentColor;
+  border-radius: 999px;
+}
+.qz-opt.ok .qz-tag { color: var(--good); }
+.qz-opt.bad .qz-tag { color: var(--bad); }
+.qz-opt.miss .qz-tag { color: var(--good); }
+
+.qz-img { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "key tag enl" "pic pic pic"; gap: 10px; align-items: center; align-content: start; padding: 12px; }
+.qz-img .qz-key { grid-area: key; }
+.qz-img .qz-tag { grid-area: tag; justify-self: start; margin-left: 0; }
+.qz-img .qz-enl { grid-area: enl; }
+.qz-pic { grid-area: pic; display: block; padding: 6px; background: #fff; border-radius: 10px; }
+.qz-pic img { display: block; width: 100%; height: auto; }
+.qz-enl {
+  padding: 3px 12px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--surface);
+  border: 2px solid var(--edge);
+  border-radius: 999px;
+  cursor: zoom-in;
+}
+.qz-enl:hover { background: var(--butter); }
+
+.qz-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; }
+.qz-btn {
+  padding: 12px 24px;
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink);
+  background: var(--surface);
+  border: 2px solid var(--edge);
+  border-radius: 999px;
+  box-shadow: 0 4px 0 var(--edge-shadow);
+  cursor: pointer;
+  transition: translate 0.1s, box-shadow 0.1s, background 0.15s;
+}
+.qz-btn.go { background: var(--coral); }
+.qz-btn:hover:not(:disabled) { translate: 0 -2px; box-shadow: 0 6px 0 var(--edge-shadow); }
+.qz-btn:active:not(:disabled) { translate: 0 3px; box-shadow: 0 1px 0 var(--edge-shadow); }
+.qz-btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+.qz-btn:focus-visible { outline: 3px solid var(--wstrong); outline-offset: 3px; }
+.qz-actions .ghost:first-child:not(:last-child) { margin-right: auto; }
+
+.qz-fb { display: grid; gap: 14px; padding: 18px 22px 20px; border: 2px solid; border-radius: 18px; }
+.qz-fb.good { border-color: var(--good); background: color-mix(in srgb, var(--mint) 45%, var(--surface)); }
+.qz-fb.bad { border-color: var(--bad); background: color-mix(in srgb, var(--coral) 20%, var(--surface)); }
+.qz-fb.partial { border-color: var(--amber); background: color-mix(in srgb, var(--butter) 38%, var(--surface)); }
+.qz-fb p { margin: 0; }
+.qz-fb-h { font-size: 1.2rem; }
+.qz-fb.good .qz-fb-h strong { color: var(--good); }
+.qz-fb.bad .qz-fb-h strong { color: var(--bad); }
+.qz-fb .pill { display: inline-block; min-width: 34px; margin: 0 3px; padding: 1px 10px; font-weight: 700; text-align: center; background: var(--surface); border: 2px solid var(--edge); border-radius: 10px; }
+.qz-why-t { margin-bottom: 8px !important; font-size: 0.76rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.qz-rev { font-size: 0.95rem; }
+
+.qz-results { display: grid; gap: 20px; }
+.qz-big { margin: 0; line-height: 1; font-size: clamp(3rem, 9vw, 4.6rem); font-weight: 700; }
+.qz-big strong { color: var(--wstrong); }
+.qz-big span { font-size: 0.45em; color: var(--muted); }
+.qz-msg { margin: 0; font-size: 1.15rem; font-weight: 600; }
+.qz-skills { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.qz-skills li { display: grid; grid-template-columns: minmax(140px, 1.2fr) 2fr auto; gap: 14px; align-items: center; }
+.qz-sk { font-weight: 600; }
+.qz-bar { height: 12px; overflow: hidden; background: var(--surface-2); border: 2px solid var(--edge); border-radius: 999px; }
+.qz-bar i { display: block; height: 100%; background: var(--good); }
+.qz-sc { font-weight: 700; font-variant-numeric: tabular-nums; }
+.qz-sub { margin: 4px 0 0; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.qz-review { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.qz-review button {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  padding: 11px 16px;
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  background: var(--surface);
+  border: 2px solid var(--edge);
+  border-radius: 14px;
+  cursor: pointer;
+}
+.qz-review button:hover { background: var(--surface-2); }
+.qz-rs { flex: none; font-size: 0.88rem; font-weight: 700; color: var(--muted); }
+.qz-nojs { margin: 0; }
+
+.qz-zoom { width: min(96vw, 1000px); max-height: 94vh; padding: 12px; color: #2b2d42; background: #fff; border: 3px solid var(--edge); border-radius: 18px; }
+.qz-zoom::backdrop { background: rgba(5, 6, 15, 0.72); }
+.qz-zoom img { display: block; max-width: 100%; max-height: calc(94vh - 80px); margin: 0 auto; }
+.qz-zoom-x { display: block; margin: 0 0 10px auto; padding: 4px 14px; font: inherit; font-weight: 700; color: #2b2d42; background: #ffe66d; border: 2px solid #2b2d42; border-radius: 999px; cursor: pointer; }
+
+/* ---------- Footer, calmer ---------- */
+.ba .foot { padding-top: 50px; }
+.ba .clear { font-family: var(--font-body); font-weight: 700; font-size: clamp(1.1rem, 3vw, 1.5rem); color: var(--ink); text-shadow: none; }
+
+/* ==========================================================
+   Responsive
+   ========================================================== */
+@media (max-width: 980px) {
+  .parts { grid-template-columns: 1fr; }
+  .ba .world,
+  .ba .w3 { grid-template-columns: minmax(0, 1fr); }
+  .ba .rail,
+  .ba .world-head,
+  .ba .grid,
+  .ba .w3 .world-head,
+  .ba .w3 .grid { grid-column: 1; }
+  .ba .rail { grid-row: auto; position: static; max-height: none; margin-bottom: 18px; padding: 0; overflow: visible; }
+  .ba .rail ol { display: flex; gap: 8px; padding: 2px 2px 8px; overflow-x: auto; }
+  .ba .rail .grp { display: none; }
+  .ba .rail li { flex: none; }
+  .ba .rail a { padding: 6px 12px 6px 8px; font-size: 0.9rem; background: var(--surface); border: 2px solid var(--edge); border-radius: 999px; white-space: nowrap; }
+  .ba .rail a::before { border: 0; background: var(--surface-2); border-radius: 50%; }
+  .ba .rail-title { display: none; }
+  .ba .topics.cols-2 > .topic:not(:first-child),
+  .ba .topics.cols-3 > .topic:not(:first-child),
+  .ba .topics.cols-4 > .topic:not(:first-child) { padding-left: 0; border-left: 0; padding-top: 22px; border-top: 2px solid var(--rule); }
+  .qz-opts.imgs { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 680px) {
+  .ba .world { padding: 24px 14px 16px; }
+  .ba .world-head { padding: 22px 18px 20px; }
+  .ba .bar { padding: 14px 16px; flex-wrap: wrap; }
+  .ba .bar h3 { flex-basis: calc(100% - 56px); }
+  .ba .src { flex-basis: calc(100% - 50px); text-align: left; margin-left: 50px; margin-top: -6px; }
+  .ba .body,
+  .ba .quiz .body { padding: 18px 16px 22px; }
+  .ba .simple > summary { padding: 14px 16px; }
+  .ba .simple-body { padding: 0 16px 20px; }
+  .parts { padding: 0 14px; }
+  .qz-skills li { grid-template-columns: 1fr auto; }
+  .qz-skills .qz-bar { grid-column: 1 / -1; grid-row: 2; }
+  .qz-actions { justify-content: stretch; }
+  .qz-actions .qz-btn { flex: 1 1 140px; }
+  .qz-actions .ghost:first-child:not(:last-child) { margin-right: 0; }
+  .qz-tag { white-space: normal; text-align: right; }
+
+  /* hero: smaller mascot, tighter title shadow, fewer top-bar items */
+  .ba .hero { padding-top: 22px; gap: 4px; }
+  .ba .mascot { width: 128px; padding-top: 58px; margin-bottom: 6px; }
+  .ba .mascot::after { bottom: -10px; height: 8px; }
+  .ba .bubble { font-size: 0.85rem; padding: 5px 11px; }
+  .ba .title span {
+    text-shadow: var(--o) 0 var(--edge-shadow), calc(var(--o) * -1) 0 var(--edge-shadow),
+      0 var(--o) var(--edge-shadow), 0 calc(var(--o) * -1) var(--edge-shadow),
+      var(--o) var(--o) var(--edge-shadow), calc(var(--o) * -1) calc(var(--o) * -1) var(--edge-shadow),
+      var(--o) calc(var(--o) * -1) var(--edge-shadow), calc(var(--o) * -1) var(--o) var(--edge-shadow),
+      4px 4px 0 var(--edge-shadow);
+  }
+  .ba .hud nav a[data-tab] { display: none; }
+}
+
+/* ==========================================================
+   Theme switch + dark theme
+   ========================================================== */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  margin: 4px 4px 4px 2px;
+  padding: 10px 12px;
+  font-family: var(--font-pixel);
+  font-size: 0.62rem;
+  line-height: 1;
+  color: var(--ink);
+  background: var(--surface);
+  border: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow:
+    0 -4px 0 0 var(--edge),
+    0 4px 0 0 var(--edge),
+    -4px 0 0 0 var(--edge),
+    4px 0 0 0 var(--edge);
+  transition: translate 0.12s, background 0.12s;
+}
+.theme-toggle:hover { background: var(--butter); translate: 0 -3px; }
+.theme-toggle:active { translate: 0 2px; }
+.theme-toggle:focus-visible { outline: 4px solid var(--coral); outline-offset: 6px; }
+.tt-ico { width: 14px; height: 14px; flex: none; }
+.tt-sun { display: none; }
+:root[data-theme="dark"] .tt-moon { display: none; }
+:root[data-theme="dark"] .tt-sun { display: block; }
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --ink: #e8eaf6;
+  --edge: #6b71a8;
+  --edge-shadow: #04050f;
+  --on-ink: #14162b;
+  --surface: #1b1e3b;
+  --surface-2: #232750;
+  --paper: #161933;
+  --sky: #0d0f25;
+  --grid: rgba(120, 132, 230, 0.09);
+  --rule: rgba(232, 234, 246, 0.2);
+  --shade: rgba(0, 0, 0, 0.4);
+  --muted: rgba(232, 234, 246, 0.74);
+  --hl: #5d4f12;
+  --chip-res: #3b3060;
+  --tricky: #4b2e2c;
+  --title-glow: rgba(0, 0, 0, 0.55);
+  --coral-hover: #d4606a;
+  --heavy-bg: #4d4415;
+  --heavy-head: #6e5f12;
+
+  --butter: #6c5a14;
+  --peach: #6b4036;
+  --lilac: #4e407c;
+  --mint: #1d5b47;
+  --coral: #c24e58;
+  --pink: #6f3b5b;
+  --sky-2: #2c6a93;
+}
+:root[data-theme="dark"] .w1 { --wbg: #5b4d12; --a1: #6c5a14; --a2: #6b4036; --a3: #6f3b5b; }
+:root[data-theme="dark"] .w2 { --wbg: #1f4d6e; --a1: #2c6a93; --a2: #1d5b47; --a3: #6c5a14; }
+:root[data-theme="dark"] .w3 { --wbg: #43366f; --a1: #4e407c; --a2: #6f3b5b; --a3: #1d5b47; }
+:root[data-theme="dark"] .w4 { --wbg: #1b5441; --a1: #1d5b47; --a2: #6b4036; --a3: #2c6a93; }
+:root[data-theme="dark"] .wh { --wbg: #5a3a34; --a1: #6c5a14; --a2: #2c6a93; --a3: #4e407c; }
+
+/* things that were drawn for a light page */
+:root[data-theme="dark"] .cloud { opacity: 0.1; }
+:root[data-theme="dark"] .star { opacity: 0.9; }
+:root[data-theme="dark"] .robot,
+:root[data-theme="dark"] .cico { background: #f4f6ff; border-radius: 10px; }
+:root[data-theme="dark"] .robot { background: none; filter: drop-shadow(0 0 0 transparent) drop-shadow(0 0 14px rgba(150, 160, 255, 0.35)); }
+:root[data-theme="dark"] .k { color: #ff8fb3; }
+:root[data-theme="dark"] .s { color: #7bdc94; }
+:root[data-theme="dark"] .c { color: #9aa3c0; }
+:root[data-theme="dark"] .f { color: #74b9ff; }
+:root[data-theme="dark"] .n { color: #ffa062; }
+:root[data-theme="dark"] .pie { border-color: var(--edge); }
+:root[data-theme="dark"] img { color-scheme: light; }
+
+:root[data-theme="dark"] body:not(.ba) .badge,
+:root[data-theme="dark"] body:not(.ba) .simple > summary { background: #343a78; color: var(--ink); }
+:root[data-theme="dark"] body:not(.ba) .simple > summary::before { background: #ffd84a; }
+
+</style>
+  <style>
+/* ==========================================================
+   Week 2 additions: compact notes, progress with percentage,
+   quick checks, small interactive demos, sound button.
+   Uses only the shared theme tokens, so dark mode just works.
+   ========================================================== */
+
+/* ---------- Progress bar with percentage (inside the sticky top bar) ---------- */
+.pbar-row {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 20px 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pbar {
+  flex: 1;
+  height: 16px;
+  background: var(--surface-2);
+  border: 3px solid var(--edge);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.pbar i {
+  display: block;
+  height: 100%;
+  width: calc(var(--p, 0) * 1%);
+  background: var(--coral);
+  border-right: 3px solid var(--edge);
+  transition: width 0.12s linear;
+}
+.pbar.zero i { border-right-width: 0; }
+.pct {
+  min-width: 4ch;
+  font-family: var(--font-pixel);
+  font-size: 0.62rem;
+  line-height: 1;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Sound button (same look as the theme button) ---------- */
+.snd-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  margin: 4px 4px 4px 2px;
+  padding: 10px 12px;
+  font-family: var(--font-pixel);
+  font-size: 0.62rem;
+  line-height: 1;
+  color: var(--ink);
+  background: var(--surface);
+  border: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 -4px 0 0 var(--edge), 0 4px 0 0 var(--edge), -4px 0 0 0 var(--edge), 4px 0 0 0 var(--edge);
+  transition: translate 0.12s, background 0.12s;
+}
+.snd-toggle:hover { background: var(--butter); translate: 0 -3px; }
+.snd-toggle:active { translate: 0 2px; }
+.snd-toggle:focus-visible { outline: 4px solid var(--coral); outline-offset: 6px; }
+.snd-toggle .tt-ico { width: 14px; height: 14px; }
+.snd-toggle .waves { display: block; }
+.snd-toggle .cross { display: none; }
+.snd-toggle[aria-pressed="false"] .waves { display: none; }
+.snd-toggle[aria-pressed="false"] .cross { display: block; }
+
+/* ---------- World lead line ---------- */
+.world-lead { margin: 14px 0 0; font-weight: 500; font-size: 1.1rem; }
+.world-head .simple.slides { margin-top: 16px; }
+
+/* ---------- Topic card: notes on the left, code on the right ---------- */
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
+  gap: 20px;
+  align-items: start;
+}
+.split > * { min-width: 0; margin-top: 0 !important; }
+.split > .stack-y > * + * { margin-top: 16px; }
+.split .code { margin: 0; }
+.split .code pre { font-size: 1.4rem; }
+.body > .lead { font-size: 1.15rem; }
+.bullets.tight li { margin: 0.4em 0; }
+.bullets code { font-size: 1.2em; }
+.tip-line { display: block; margin-top: 12px; }
+
+/* ---------- "From the slides" toggle (closed by default) ---------- */
+.simple.slides { box-shadow: 3px 3px 0 var(--edge-shadow); }
+.simple.slides > summary { background: var(--surface-2); color: var(--ink); border-bottom: 3px solid var(--edge); }
+.simple.slides:not([open]) > summary { border-bottom: 0; }
+.simple.slides > summary::before { background: var(--coral); }
+.slides-body { padding: 12px 18px 14px; font-size: 1rem; }
+.slides-body .bullets li { margin: 0.3em 0; }
+.slides-body a { word-break: break-all; }
+
+/* ---------- Quick check ---------- */
+.qc {
+  padding: 12px 14px 14px;
+  background: var(--surface-2);
+  border: 3px solid var(--edge);
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 var(--edge-shadow);
+}
+.qc-q { margin: 0 0 10px; font-weight: 600; }
+.qc-tag {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 4px 8px;
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  line-height: 1;
+  background: var(--butter);
+  border: 3px solid var(--edge);
+  border-radius: 6px;
+  vertical-align: 2px;
+}
+.qc-opts { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.qc-opts button {
+  font: inherit;
+  line-height: 1.3;
+  text-align: left;
+  color: var(--ink);
+  padding: 9px 12px;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: translate 0.1s, background 0.1s;
+}
+.qc-opts button:hover:not(:disabled) { background: var(--hl); translate: 0 -2px; }
+.qc-opts button:focus-visible { outline: 4px solid var(--coral); outline-offset: 2px; }
+.qc-opts button:disabled { cursor: default; opacity: 1; }
+.qc-opts button.ok { background: var(--mint); }
+.qc-opts button.no { background: var(--coral); animation: shake 0.3s; }
+.qc-opts code { font-size: 1.15em; }
+.qc-fb { margin: 10px 0 0; font-weight: 500; }
+.qc-fb b { font-weight: 700; }
+.qc-fb .retry {
+  font: inherit;
+  margin-left: 6px;
+  padding: 0 8px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 2px solid var(--edge);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.qc-fb .retry:hover { background: var(--butter); }
+@keyframes shake { 25% { translate: -4px 0; } 75% { translate: 4px 0; } }
+
+/* ---------- Small buttons used inside the demos ---------- */
+button.btn { border: 0; cursor: pointer; }
+.btn.sm { font-size: 0.58rem; padding: 9px 11px; }
+.btn:disabled { opacity: 0.45; cursor: default; translate: 0 0; background: var(--surface); }
+.btn:focus-visible { outline: 4px solid var(--coral); outline-offset: 6px; }
+
+/* ---------- Demo frame ---------- */
+.demo {
+  padding: 14px;
+  background: var(--tint);
+  border: 3px solid var(--edge);
+  border-radius: 16px;
+}
+.demo-h {
+  margin: 0 0 10px;
+  font-family: var(--font-pixel);
+  font-size: 0.6rem;
+  line-height: 1.5;
+  font-weight: 400;
+}
+.demo-note { margin: 12px 0 0; min-height: 3.1em; font-weight: 500; }
+
+/* ---------- Stack / event-loop stepper ---------- */
+.sim-wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 14px; align-items: start; }
+.sim-code {
+  margin: 0;
+  padding: 10px 6px;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 12px;
+  font-family: var(--font-code);
+  font-size: 1.35rem;
+  line-height: 1.25;
+  overflow-x: auto;
+}
+.sim-code .ln { display: block; padding: 0 10px; border-left: 6px solid transparent; white-space: pre; }
+.sim-code .ln.on { background: var(--hl); border-left-color: var(--coral); }
+.sim-board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; }
+.sim-col > b {
+  display: block;
+  margin-bottom: 6px;
+  font-family: var(--font-pixel);
+  font-size: 0.5rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+.well {
+  min-height: 168px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column-reverse;   /* first item at the bottom: a stack */
+  justify-content: flex-start;
+  gap: 6px;
+  background: var(--surface);
+  border: 3px dashed var(--edge);
+  border-radius: 10px;
+}
+.well.queue { flex-direction: column; }
+.well.out { flex-direction: column; background: var(--surface-2); border-style: solid; }
+.blk {
+  padding: 6px 8px;
+  font-family: var(--font-code);
+  font-size: 1.25rem;
+  line-height: 1;
+  background: var(--a1);
+  border: 3px solid var(--edge);
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+  animation: pop 0.18s ease-out;
+}
+.blk.top { background: var(--coral); }
+.well.queue .blk { background: var(--a2); }
+.well.out .blk { background: transparent; border: 0; padding: 2px 4px; animation: none; }
+@keyframes pop { from { scale: 0.7; opacity: 0.2; } to { scale: 1; opacity: 1; } }
+.sim-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 12px; }
+.sim-count { margin-left: auto; font-family: var(--font-pixel); font-size: 0.55rem; }
+
+/* ---------- map / filter / find lab ---------- */
+.lab-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.lab-row + .lab-row { margin-top: 10px; }
+.lab-arr, .lab-res {
+  display: inline-block;
+  padding: 4px 10px;
+  font-family: var(--font-code);
+  font-size: 1.4rem;
+  line-height: 1.1;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 8px;
+}
+.lab-res { background: var(--mint); }
+.lab-code { margin: 10px 0 0; padding: 8px 12px; font-family: var(--font-code); font-size: 1.4rem; line-height: 1.2;
+  background: var(--surface); border: 3px solid var(--edge); border-radius: 10px; overflow-x: auto; white-space: pre; }
+
+/* ---------- JSON lab ---------- */
+.jl-in {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 12px;
+  font-family: var(--font-code);
+  font-size: 1.35rem;
+  line-height: 1.2;
+  color: var(--ink);
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 10px;
+  resize: vertical;
+}
+.jl-in:focus-visible { outline: 4px solid var(--coral); outline-offset: 2px; }
+.jl-out { margin: 12px 0 0; padding: 10px 12px; font-weight: 600; border: 3px solid var(--edge); border-radius: 12px; background: var(--surface); }
+.jl-out.ok { background: var(--mint); }
+.jl-out.bad { background: var(--coral); }
+.jl-out pre { margin: 8px 0 0; font-family: var(--font-code); font-size: 1.3rem; line-height: 1.15; font-weight: 400; overflow-x: auto; }
+.jl-rules { margin: 10px 0 0; font-size: 0.95rem; font-weight: 500; }
+
+/* ---------- Table in a card ---------- */
+.body > .tbl-wrap { margin-top: 0; }
+
+/* ---------- Footer score ---------- */
+.score {
+  display: inline-block;
+  margin: 8px 0 14px;
+  padding: 8px 14px;
+  font-family: var(--font-pixel);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 10px;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 860px) {
+  .split, .sim-wrap { grid-template-columns: 1fr; }
+}
+@media (max-width: 680px) {
+  .pbar-row { padding: 0 14px 8px; }
+  .snd-toggle .tt-label { display: none; }
+  .snd-toggle { padding: 10px; }
+  .qc-opts { grid-template-columns: 1fr; }
+  .sim-board { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
+  .split .code pre { font-size: 1.2rem; }
+  .sim-code { font-size: 1.2rem; }
+  .lab-code, .jl-in { font-size: 1.2rem; }
+  .well { min-height: 128px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blk, .qc-opts button.no { animation: none; }
+  .pbar i { transition: none; }
+}
+
+.btn.go.sm { font-size: 0.62rem; padding: 12px 16px; }
+
+/* ---------- Week 1 additions ---------- */
+/* topic with no code: bullets span the card in two columns */
+.solo > ul { columns: 2 22em; column-gap: 32px; }
+.solo > ul > li { break-inside: avoid; }
+
+/* pick-one demos */
+.btn.sel { background: var(--butter); translate: 0 2px; }
+.lab-res { min-width: 3ch; }
+.lab-res.err { background: var(--coral); }
+.lab-res.warn { background: var(--butter); }
+.lab-code:empty::before { content: "// pick one above"; opacity: 0.6; }
+
+/* name checker and live DOM demo */
+.dom-in {
+  flex: 1 1 12em;
+  min-width: 0;
+  padding: 8px 12px;
+  font-family: var(--font-code);
+  font-size: 1.35rem;
+  line-height: 1.2;
+  color: var(--ink);
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 10px;
+}
+.dom-in:focus-visible { outline: 4px solid var(--coral); outline-offset: 2px; }
+.dom-out { margin: 12px 0 0; min-height: 2.2em; font-size: 1.25rem; font-weight: 600; }
+.id-out { margin-top: 10px; }
+.jl-out.warn { background: var(--butter); }
+.words { margin: 10px 0 0; font-family: var(--font-code); font-size: 1.2rem; line-height: 1.35; }
+.words b { font-family: var(--font-pixel); font-size: 0.5rem; font-weight: 400; margin-right: 6px; }
+@media (max-width: 680px) { .dom-in { font-size: 1.2rem; } }
+
+/* ---------- "Why it matters" line under the lead ---------- */
+.why { margin: 8px 0 14px; font-size: 1.02rem; line-height: 1.45; }
+.why-tag {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 4px 8px;
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  line-height: 1;
+  background: var(--mint);
+  border: 3px solid var(--edge);
+  border-radius: 6px;
+  vertical-align: 2px;
+}
+
+/* ---------- Tic-Tac-Toe ---------- */
+.ttt-wrap { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: start; }
+.ttt-board { display: grid; grid-template-columns: repeat(3, 68px); gap: 6px; }
+.ttt-cell {
+  width: 68px; height: 68px;
+  font-family: var(--font-pixel);
+  font-size: 1.2rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: translate 0.1s, background 0.1s;
+}
+.ttt-cell:hover:not(.x):not(.o) { background: var(--hl); translate: 0 -2px; }
+.ttt-cell:focus-visible { outline: 4px solid var(--coral); outline-offset: 2px; }
+.ttt-cell.x { background: var(--peach); }
+.ttt-cell.o { background: var(--a1); }
+.ttt-cell.win { background: var(--mint); }
+.ttt-state { margin: 0; white-space: pre; overflow-x: auto; font-size: 1.2rem; }
+.ttt-side .demo-note { min-height: 3.1em; }
+@media (max-width: 680px) { .ttt-wrap { grid-template-columns: 1fr; } }
+
+/* ---------- Vue demos ---------- */
+.two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.col-box { padding: 10px 12px; background: var(--surface); border: 3px solid var(--edge); border-radius: 12px; min-width: 0; }
+.col-box > b {
+  display: block; margin-bottom: 8px;
+  font-family: var(--font-pixel); font-size: 0.55rem; font-weight: 400; line-height: 1.5;
+}
+.col-box .dom-in { display: block; width: 100%; box-sizing: border-box; }
+.col-box .btn { margin-top: 10px; }
+.b-line { margin: 8px 0 0; font-family: var(--font-code); font-size: 1.35rem; line-height: 1.2; overflow-wrap: anywhere; }
+.chk { display: inline-flex; align-items: center; gap: 8px; margin-right: 14px; font-weight: 600; cursor: pointer; }
+.chk input { width: 20px; height: 20px; accent-color: var(--coral); cursor: pointer; }
+.cb-box {
+  margin-top: 10px; padding: 14px; text-align: center; font-weight: 600;
+  background: var(--surface); border: 3px dashed var(--edge); border-radius: 12px;
+}
+.cb-box.active { border-style: solid; background: var(--mint); }
+.cb-box.text-danger { border-style: solid; background: var(--coral); }
+.cb-box.active.text-danger { background: linear-gradient(90deg, var(--mint) 50%, var(--coral) 50%); }
+.cb-out { margin-top: 10px; white-space: pre; overflow-x: auto; }
+.is-host { min-height: 58px; padding: 6px; border: 3px dashed var(--edge); border-radius: 10px; }
+.is-box { padding: 10px; font-weight: 600; background: var(--a1); border: 3px solid var(--edge); border-radius: 8px; }
+.is-show { background: var(--a2); }
+.is-read { margin: 8px 0 0; font-family: var(--font-code); font-size: 1.25rem; line-height: 1.2; }
+.k-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.k-row { display: flex; align-items: center; gap: 10px; }
+.k-label { flex: 0 0 5.5em; font-weight: 600; }
+.k-row .dom-in { flex: 1 1 8em; }
+.stat { font-family: var(--font-pixel); font-size: 0.6rem; line-height: 1.6; }
+.stat b { font-size: 0.8rem; }
+.r-view { margin: 10px 0 0; padding: 10px 12px; font-family: var(--font-code); font-size: 1.5rem; background: var(--mint); border: 3px solid var(--edge); border-radius: 10px; }
+.r-log { min-height: 11.5em; margin-top: 0; white-space: pre; overflow-x: auto; }
+@media (max-width: 680px) { .two-col { grid-template-columns: 1fr; } }
+
+/* nested list inside a bullet */
+.bullets.tight li > .bullets.sub { margin-top: 4px; }
+.bullets.tight li > .bullets.sub li { margin: 0.2em 0; }
+
+</style>
+  <script>
+/* MAD-II notes - light / dark theme switch.
+   Runs in <head> so the saved theme is applied before the page paints (no flash). */
+(function () {
+  var root = document.documentElement;
+  var KEY = "mad2-theme";
+
+  function saved() {
+    try { return localStorage.getItem(KEY); } catch (e) { return null; }
+  }
+  function apply(theme) { root.setAttribute("data-theme", theme); }
+
+  apply(saved() === "dark" ? "dark" : "light");
+
+  document.addEventListener("DOMContentLoaded", function () {
+    var buttons = document.querySelectorAll(".theme-toggle");
+
+    function sync() {
+      var dark = root.getAttribute("data-theme") === "dark";
+      buttons.forEach(function (b) {
+        b.setAttribute("aria-pressed", dark ? "true" : "false");
+        b.setAttribute("aria-label", dark ? "Switch to light theme" : "Switch to dark theme");
+        var label = b.querySelector(".tt-label");
+        if (label) label.textContent = dark ? "Light" : "Dark";
+      });
+    }
+
+    buttons.forEach(function (b) {
+      b.addEventListener("click", function () {
+        var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+        apply(next);
+        try { localStorage.setItem(KEY, next); } catch (e) {}
+        sync();
+      });
+    });
+    sync();
+  });
+})();
+
+</script>
+</head>
+<body>
+
+<!-- Pixel sprites reused across the page -->
+<svg class="sprites" aria-hidden="true" focusable="false">
+  <symbol id="cloud" viewBox="0 0 16 4">
+    <path fill="#ffffff" d="M3 0h3v1H3z M8 0h4v1H8z M2 1h11v1H2z M1 2h14v1H1z M0 3h16v1H0z"/>
+    <path fill="#d4ecfb" d="M0 3h16v1H0z"/>
+  </symbol>
+  <symbol id="star" viewBox="0 0 5 5">
+    <path fill="#ffc233" d="M2 0h1v5H2z M0 2h5v1H0z"/>
+    <path fill="#fff6c8" d="M2 2h1v1H2z"/>
+  </symbol>
+</svg>
+
+<div class="sky" aria-hidden="true">
+  <svg class="cloud c1"><use href="#cloud"/></svg>
+  <svg class="cloud c2"><use href="#cloud"/></svg>
+  <svg class="cloud c3"><use href="#cloud"/></svg>
+  <svg class="cloud c4"><use href="#cloud"/></svg>
+</div>
+
+<header class="hud">
+  <div class="hud-inner">
+    <a class="brand" href="#top">
+      <svg class="brand-star" aria-hidden="true"><use href="#star"/></svg>
+      <abbr title="Modern Application Development - II">MAD-II</abbr>
+    </a>
+    <nav aria-label="Worlds">
+      <a class="hub-link" href="index.html">&lt; Weeks</a>
+      <a href="#world-1">1 Frontend</a>
+      <a href="#world-2">2 State</a>
+      <a href="#world-3">3 In practice</a>
+    </nav>
+    <button class="snd-toggle" id="snd" type="button" aria-pressed="true" aria-label="Sound effects on. Press to mute"><svg class="tt-ico" viewBox="0 0 12 12" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" d="M1 4h2v4H1zM3 3h1v6H3zM4 2h1v8H4z"/><path class="waves" fill="currentColor" d="M6 4h1v4H6zM8 2h1v8H8zM10 3h1v6h-1z"/><path class="cross" fill="currentColor" d="M6 4h1v1H6zM7 5h1v1H7zM8 6h1v1H8zM9 7h1v1H9zM9 4h1v1H9zM8 5h1v1H8zM6 7h1v1H6z"/></svg><span class="tt-label">Sound</span></button>
+    <button class="theme-toggle" type="button" aria-pressed="false" aria-label="Switch to dark theme">
+      <svg class="tt-ico tt-moon" viewBox="0 0 12 12" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" d="M3 1h2v1h-2zM2 2h2v1h-2zM1 3h3v1h-3zM0 4h4v1h-4zM0 5h4v1h-4zM0 6h4v1h-4zM0 7h5v1h-5zM1 8h6v1h-6zM1 9h9v1h-9zM2 10h7v1h-7zM5 11h2v1h-2z"/></svg>
+      <svg class="tt-ico tt-sun" viewBox="0 0 12 12" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" d="M5 0h2v1h-2zM5 1h2v1h-2zM2 2h1v1h-1zM9 2h1v1h-1zM5 3h2v1h-2zM4 4h4v1h-4zM0 5h2v1h-2zM3 5h6v1h-6zM10 5h2v1h-2zM0 6h2v1h-2zM3 6h6v1h-6zM10 6h2v1h-2zM4 7h4v1h-4zM5 8h2v1h-2zM2 9h1v1h-1zM9 9h1v1h-1zM5 10h2v1h-2zM5 11h2v1h-2z"/></svg>
+      <span class="tt-label">Dark</span>
+    </button>
+  </div>
+
+  <div class="pbar-row"><div class="pbar zero" role="progressbar" aria-label="Reading progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div><span class="pct" id="pct" aria-hidden="true">0%</span></div>
+</header>
+
+<main>
+
+  <section class="hero" id="top">
+    <svg class="star st1" aria-hidden="true"><use href="#star"/></svg>
+    <svg class="star st2" aria-hidden="true"><use href="#star"/></svg>
+    <svg class="star st3" aria-hidden="true"><use href="#star"/></svg>
+
+    <div class="hero-text">
+      <p class="eyebrow">Modern Application Development - II</p>
+      <h1 class="title">
+        <span style="--i:0;--c:#ff7b7b">Week</span>
+        <span style="--i:1;--c:#ffd23f">3</span>
+      </h1>
+      <p class="lede">What the frontend is, declarative UI, and the three kinds of state.</p>
+      <p><a class="btn go" href="#world-1">Start reading</a></p>
+      <ul class="world-links">
+        <li><a href="#world-1">World 1: The Frontend</a></li>
+        <li><a href="#world-2">World 2: Three Kinds of State</a></li>
+        <li><a href="#world-3">World 3: State in Practice</a></li>
+      </ul>
+    </div>
+
+    <div class="mascot">
+      <p class="bubble">UI = f(state)</p>
+      <svg class="robot" viewBox="0 0 12 12" role="img" aria-label="A friendly pixel robot" shape-rendering="crispEdges">
+        <rect x="5" y="0" width="2" height="1" fill="#ff7b7b"/>
+        <rect x="2" y="3" width="8" height="7" fill="#8ecae6"/>
+        <path fill="#2b2d42" d="M5 1h2v1H5z M2 2h8v1H2z M1 3h1v7H1z M10 3h1v7h-1z M2 10h8v1H2z M3 4h2v2H3z M7 4h2v2H7z M4 8h1v1H4z M7 8h1v1H7z M5 9h2v1H5z M3 11h2v1H3z M7 11h2v1H7z"/>
+        <path fill="#ffffff" d="M3 4h1v1H3z M7 4h1v1H7z"/>
+        <path fill="#ffb3d1" d="M3 7h1v1H3z M8 7h1v1H8z"/>
+      </svg>
+    </div>
+  </section>
+
+<section class="world w1" id="world-1">
+<header class="world-head"><div class="world-title"><span class="badge">World 1</span><h2>The Frontend</h2></div><p class="world-lead">What the frontend is for, and the two ways to program it.</p><details class="simple slides"><summary>Slide agenda</summary><div class="slides-body"><ul class="bullets"><li>What is the frontend?</li><li>Programming Styles</li></ul></div></details></header>
+<div class="grid">
+<article class="slide s-12" id="t-frontend">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">🖼️</span>What is the frontend?</h3><span class="no" title="Topic 1">01</span></header>
+<div class="body">
+<p class="lead">The part of the app the user sees and touches. Keep it thin.</p>
+<p class="why"><span class="why-tag">Why</span>It decides how the app feels. A slow or confusing frontend ruins a perfectly good backend.</p>
+<div class="solo"><ul class="bullets tight"><li><b>Frontend</b> = the user-facing part of the app. <b>UI</b> (User Interface) is what is on screen. <b>UX</b> (User Experience) is how it feels to use.</li><li><b>Requirements</b> (must have):<ul class="bullets tight sub"><li><b>Avoid complex logic.</b> Application logic belongs in the backend. The user can open and change frontend code in their browser, so it cannot be trusted.</li><li><b>No data storage.</b> The backend and database own the data. The frontend only shows it.</li><li><b>Work with stateless HTTP.</b> Every request stands alone, so the frontend must carry or ask for whatever the server needs.</li></ul></li><li><b>Desirable</b> (nice to have):<ul class="bullets tight sub"><li><b>Aesthetically pleasing</b>.</li><li><b>Responsive</b>: no lag or latency.</li><li><b>Adaptive</b>: fits different screens (phone, tablet, laptop).</li></ul></li></ul></div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><ul class="bullets"><li>User-facing part of app<ul><li>User Interface (UI) and User Experience (UX)</li></ul></li><li>Requirements<ul><li>Avoid complex logic - application logic should be in backend</li><li>No data storage</li><li>Work with stateless nature of HTTP</li></ul></li><li>Desirable<ul><li>Aesthetically pleasing</li><li>Responsive - no lag / latency</li><li>Adaptive - different screens</li></ul></li></ul></div></details>
+<div class="qc" data-ans="b"><p class="qc-q"><span class="qc-tag">Quick check</span>Where should the main application logic live?</p><div class="qc-opts"><button type="button" data-k="a">In the frontend</button><button type="button" data-k="b">In the backend</button><button type="button" data-k="c">In the HTML only</button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden>The frontend runs on the user's machine and can be changed by them. Logic and data stay on the server.</div></div>
+</div></article>
+<article class="slide s-12" id="t-styles">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">🧭</span>Programming styles</h3><span class="no" title="Topic 2">02</span></header>
+<div class="body">
+<p class="lead">Imperative: say how, step by step. Declarative: say what you want.</p>
+<p class="why"><span class="why-tag">Why</span>Modern frontend frameworks (like Vue, next week) are declarative. This idea is the reason they exist.</p>
+<div class="split"><ul class="bullets tight"><li><b>Imperative</b>: a sequence of actions to reach the final result. Draw the boxes for navigation and main text, fill in the text, wait for clicks. One function per step, then compose the functions.</li><li><b>Declarative</b>: you specify the desired result. The compiler or interpreter knows how to achieve it, and function integration is automated.</li><li><b>UI = f(state)</b>: the layout on the screen is a function of the application state (your build methods are the <b>f</b>). Change the state and the UI follows. (Credit: Flutter docs, “Start thinking declaratively”.)</li><li><span class="tip-line">Think taxi: imperative = tell the driver every turn. Declarative = give the address.</span></li><li><span class="sticker warn">In imperative code you must remember to update the screen yourself. Forget one place and it shows old data.</span></li></ul><div class="stack-y"><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>imperative.js</figcaption><pre><code><span class="c">// Imperative: you do every DOM step yourself</span>
+<span class="k">const</span> label = document.<span class="f">getElementById</span>(<span class="s">"count"</span>);
+<span class="k">let</span> count = <span class="n">0</span>;
+document.<span class="f">getElementById</span>(<span class="s">"add"</span>).<span class="f">addEventListener</span>(<span class="s">"click"</span>, () =&gt; {
+  count = count + <span class="n">1</span>;
+  label.textContent = <span class="s">"Count: "</span> + count;   <span class="c">// don't forget this line</span>
+});</code></pre></figure><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>declarative.js</figcaption><pre><code><span class="c">// Declarative: describe the screen for any state</span>
+<span class="k">function</span> <span class="f">render</span>(state) {
+  <span class="k">return</span> <span class="s">"Count: "</span> + state.count;     <span class="c">// UI = f(state)</span>
+}
+<span class="f">render</span>({ count: <span class="n">0</span> });   <span class="c">// "Count: 0"</span>
+<span class="f">render</span>({ count: <span class="n">7</span> });   <span class="c">// "Count: 7"</span>
+<span class="c">// Vue (week 4) turns this into one line:  &lt;p&gt;Count: {{ count }}&lt;/p&gt;</span></code></pre></figure></div></div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><ul class="bullets"><li>Imperative: sequence of actions to achieve final result<ul><li>Draw boxes for navigation, main text, fill in text, wait for clicks etc.</li><li>Functions for each step, composition of functions</li></ul></li><li>Declarative: specify desired result<ul><li>Compiler / Interpreter knows how to achieve result</li><li>Function integration automated</li></ul></li></ul><p>UI = f(state): the layout on the screen = your build methods applied to the application state. Credit: Flutter documentation “Start thinking declaratively”</p></div></details>
+<div class="qc" data-ans="c"><p class="qc-q"><span class="qc-tag">Quick check</span>Which one describes the <b>declarative</b> style?</p><div class="qc-opts"><button type="button" data-k="a">List every DOM step needed to reach the result</button><button type="button" data-k="b">Write all logic in the backend</button><button type="button" data-k="c">Describe the result you want and let the framework work out the steps</button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden>Declarative = what, not how. The framework works out the DOM steps for you.</div></div>
+</div></article>
+</div></section>
+<section class="world w2" id="world-2">
+<header class="world-head"><div class="world-title"><span class="badge">World 2</span><h2>Three Kinds of State</h2></div><p class="world-lead">System, application and UI state: from biggest to smallest.</p><details class="simple slides"><summary>Slide agenda</summary><div class="slides-body"><ul class="bullets"><li>State?</li><li>System State</li><li>Application State</li><li>UI State (Ephemeral State)</li></ul></div></details></header>
+<div class="grid">
+<article class="slide s-12" id="t-state">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">🧠</span>State?</h3><span class="no" title="Topic 3">03</span></header>
+<div class="body">
+<p class="lead">State is the system's memory.</p>
+<p class="why"><span class="why-tag">Why</span>Most “it worked a minute ago” bugs are state bugs. Knowing which state lives where is half the job.</p>
+<div class="split"><ul class="bullets tight"><li><b>State</b>: the internal details of the system. Its memory.</li><li><b>Reproducibility</b>: given a system state, the system should always respond the same way to the same input.</li><li><b>Complexity</b>: any non-trivial application needs internal state. You cannot avoid it, so you manage it.</li><li>Three levels follow: <b>system</b> state, <b>application</b> state, <b>UI</b> (ephemeral) state. Biggest and most permanent first, smallest and shortest-lived last.</li><li><span class="tip-line">Think calculator: the number on the display and the stored memory value are its state.</span></li></ul><div class="stack-y"><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>reproducible.js</figcaption><pre><code><span class="c">// Reproducible: same state + same input = same response</span>
+<span class="k">function</span> <span class="f">respond</span>(state, input) {
+  <span class="k">return</span> state.stock &gt;= input.qty ? <span class="s">"ok"</span> : <span class="s">"sold out"</span>;
+}
+<span class="f">respond</span>({ stock: <span class="n">5</span> }, { qty: <span class="n">2</span> });   <span class="c">// "ok", every time</span>
+<span class="f">respond</span>({ stock: <span class="n">5</span> }, { qty: <span class="n">9</span> });   <span class="c">// "sold out", every time</span></code></pre></figure></div></div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><ul class="bullets"><li>Internal details of the system: memory</li><li>Reproducibility<ul><li>Given a “system state”, the system should always respond the same way to input</li></ul></li><li>Complexity<ul><li>Any non-trivial application needs internal state</li></ul></li></ul></div></details>
+<div class="qc" data-ans="a"><p class="qc-q"><span class="qc-tag">Quick check</span>A system is in the same state and gets the same input twice. What should it do?</p><div class="qc-opts"><button type="button" data-k="a">Respond the same way both times</button><button type="button" data-k="b">Respond differently the second time</button><button type="button" data-k="c">Ignore the second input</button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden>That is reproducibility: state plus input fully decide the response.</div></div>
+</div></article>
+<article class="slide s-12" id="t-system">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">🗄️</span>System state</h3><span class="no" title="Topic 4">04</span></header>
+<div class="body">
+<p class="lead">Everything the whole system knows. Huge and complete.</p>
+<p class="why"><span class="why-tag">Why</span>This is the master copy. The backend and database own it, and a frontend can come and go without changing it.</p>
+<div class="split"><ul class="bullets tight"><li>Examples: the complete database of amazon.in or flipkart.com (stock of items, prices, logged-in and registered users).</li><li>All news articles ever published on toi.com, thehindu.com, bbc.com.</li><li>All students, courses, marks and certificates for NPTEL.</li><li>Typically <b>huge, but comprehensive</b>: it covers everything, for everyone.</li><li><b>Completely independent of the user interface / frontend.</b> Replace the whole frontend and the system state does not change.</li></ul><div class="stack-y"><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>system-state.js</figcaption><pre><code><span class="c">// System state: lives on the server, in a database (sketch)</span>
+<span class="k">const</span> systemState = {
+  items: [{ id: <span class="n">1</span>, name: <span class="s">"Pen"</span>, price: <span class="n">10</span>, stock: <span class="n">40</span> }],
+  users: [{ id: <span class="n">7</span>, name: <span class="s">"Asha"</span>, loggedIn: <span class="k">true</span> }],
+  <span class="c">// ...every user, every order, everything</span>
+};</code></pre></figure></div></div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><ul class="bullets"><li>Complete database of amazon.in, flipkart.com<ul><li>Stocks of available items, prices, logged in/registered users etc.</li></ul></li><li>All news articles ever published on toi.com, thehindu.com, bbc.com</li><li>All students, courses, marks, certificates etc. for NPTEL</li></ul><p>Typically huge, but comprehensive</p><ul class="bullets"><li>Completely independent of the user interface / frontend!</li></ul></div></details>
+<div class="qc" data-ans="c"><p class="qc-q"><span class="qc-tag">Quick check</span>Which of these is <b>system</b> state?</p><div class="qc-opts"><button type="button" data-k="a">The tab you have open</button><button type="button" data-k="b">Your cart's theme colour</button><button type="button" data-k="c">The stock of every item on the site</button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden>System state covers the whole system and every user. A tab or a theme is far smaller.</div></div>
+</div></article>
+<article class="slide s-12" id="t-app">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">👤</span>Application state</h3><span class="no" title="Topic 5">05</span></header>
+<div class="body">
+<p class="lead">The system as one user (one session) sees it.</p>
+<p class="why"><span class="why-tag">Why</span>This is the state the frontend really needs to hold, or to ask the server for: your cart, your settings.</p>
+<div class="split"><ul class="bullets tight"><li><b>Application state</b>: the system as seen by an individual user or session. It includes interactivity and session management.</li><li>Examples: shopping cart, user preferences, theme; followed news items, recommendations; dashboard displays.</li><li>It is a <b>personal slice</b> of the system state. Two users share one system but have different application states.</li></ul><div class="stack-y"><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>app-state.js</figcaption><pre><code><span class="c">// Application state: one user's session (sketch)</span>
+<span class="k">const</span> appState = {
+  cart: [{ itemId: <span class="n">1</span>, qty: <span class="n">2</span> }],
+  theme: <span class="s">"dark"</span>,
+  following: [<span class="s">"sports"</span>, <span class="s">"tech"</span>],
+};</code></pre></figure></div></div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><p>Application:</p><ul class="bullets"><li>System as seen by an individual user / session</li><li>Includes interactivity, session management</li></ul><p>Examples:</p><ul class="bullets"><li>Shopping cart, user preferences, theme</li><li>Followed news items, recommendations</li><li>Dashboard displays</li></ul></div></details>
+<div class="qc" data-ans="b"><p class="qc-q"><span class="qc-tag">Quick check</span>Whose state is a shopping cart?</p><div class="qc-opts"><button type="button" data-k="a">The whole shop (system state)</button><button type="button" data-k="b">One user's session (application state)</button><button type="button" data-k="c">The loading icon (UI state)</button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden>A cart belongs to one user in one session, so it is application state.</div></div>
+</div></article>
+<article class="slide s-12" id="t-ui">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">⏳</span>UI (ephemeral) state</h3><span class="no" title="Topic 6">06</span></header>
+<div class="body">
+<p class="lead">The part you actually see and touch. Short-lived.</p>
+<p class="why"><span class="why-tag">Why</span>It is fine to lose it on a refresh, which is why it is the safest state to keep only in the browser.</p>
+<div class="split"><ul class="bullets tight"><li><b>UI state</b>: the part of the application that is actually seen or interacted with.</li><li><b>Ephemeral</b> = “lasting for a very short time” (the term Flutter uses).</li><li>Examples: loading icons; the currently selected tab in a multi-tab document or page.</li><li>Rule of thumb: if losing it on refresh is harmless, it is probably UI state.</li></ul><div class="stack-y"><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>ui-state.js</figcaption><pre><code><span class="c">// UI state: only about what is on screen right now (sketch)</span>
+<span class="k">const</span> uiState = { activeTab: <span class="s">"marks"</span>, loading: <span class="k">false</span> };</code></pre></figure></div></div>
+<div class="demo" data-lab="pick"><h4 class="demo-h">Try it: which kind of state is it?</h4><div class="lab-row"><button type="button" class="btn sm" data-code="Stock of every item in the shop" data-res="System state" data-kind="ok" data-why="It is about the whole system and every user, so the backend owns it.">Stock of every item</button><button type="button" class="btn sm" data-code="The items in your cart" data-res="Application state" data-kind="ok" data-why="It belongs to one user&#x27;s session.">Your shopping cart</button><button type="button" class="btn sm" data-code="Theme: dark" data-res="Application state" data-kind="ok" data-why="A user preference: the system as this one user sees it.">Dark theme</button><button type="button" class="btn sm" data-code="The tab that is currently open" data-res="UI (ephemeral) state" data-kind="ok" data-why="Short-lived and only about what is on screen right now.">Selected tab</button><button type="button" class="btn sm" data-code="A loading icon is spinning" data-res="UI (ephemeral) state" data-kind="ok" data-why="It exists only while the request is in flight.">Loading spinner</button><button type="button" class="btn sm" data-code="All students, courses, marks" data-res="System state" data-kind="ok" data-why="Huge and comprehensive, and independent of any frontend.">All NPTEL marks</button></div><pre class="lab-code" aria-label="Example"></pre><div class="lab-row"><span>Answer:</span><span class="lab-res" aria-live="polite">?</span></div><p class="demo-note" aria-live="polite">Click an example. System, application or UI state?</p></div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><p>UI</p><ul class="bullets"><li>Part of application actually seen / interacted with</li><li>Ephemeral - “lasting for a very short time” (term used by Flutter)</li></ul><p>Examples:</p><ul class="bullets"><li>Loading icons</li><li>Currently selected tab in multi-tab document / page</li></ul></div></details>
+<div class="qc" data-ans="a"><p class="qc-q"><span class="qc-tag">Quick check</span>Which one is <b>UI (ephemeral)</b> state?</p><div class="qc-opts"><button type="button" data-k="a">Which tab is currently selected</button><button type="button" data-k="b">Every registered user</button><button type="button" data-k="c">All NPTEL marks</button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden>A selected tab is short-lived and only about the screen. The others live on the server.</div></div>
+</div></article>
+</div></section>
+<section class="world w3" id="world-3">
+<header class="world-head"><div class="world-title"><span class="badge">World 3</span><h2>State in Practice</h2></div><p class="world-lead">Who holds the state, shown with a small game.</p><details class="simple slides"><summary>Slide agenda</summary><div class="slides-body"><ul class="bullets"><li>Application and UI management</li><li>Example: Tic-Tac-Toe</li></ul></div></details></header>
+<div class="grid">
+<article class="slide s-12" id="t-manage">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">🔄</span>Application and UI management</h3><span class="no" title="Topic 7">07</span></header>
+<div class="body">
+<p class="lead">HTTP forgets. So someone has to remember: the client or the server.</p>
+<p class="why"><span class="why-tag">Why</span>This choice shapes the whole design: where bugs hide, how fast the app feels, and what the server must store.</p>
+<div class="split"><ul class="bullets tight"><li><b>HTTP is stateless</b>: every request is independent. The server does not remember the one before.</li><li>So how do client and server share state? Two ways:</li><li><b>Client maintains state</b>: the browser keeps the state and sends requests to the server for specific items.</li><li><b>Server maintains state</b>: the server keeps the state and only allows the client specific requests.</li><li>Real apps mix both: the server holds the system state, the client holds the UI state, and application state is shared between them.</li></ul><div class="stack-y"><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>client-state.js</figcaption><pre><code><span class="c">// Client maintains state: the browser remembers</span>
+<span class="k">let</span> page = <span class="n">2</span>;                        <span class="c">// state in the browser</span>
+<span class="f">fetch</span>(<span class="s">"/api/courses?page="</span> + page);  <span class="c">// ask for one thing</span></code></pre></figure><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>server-state.js</figcaption><pre><code><span class="c">// Server maintains state: remembers each user by session ID</span>
+<span class="k">const</span> sessions = { abc123: { step: <span class="n">2</span>, cart: [<span class="n">1</span>, <span class="n">5</span>] } };
+<span class="c">// a request arrives with cookie "abc123"</span>
+<span class="c">// -&gt; server reads sessions["abc123"] and decides what is allowed</span></code></pre></figure></div></div>
+<div class="tbl-wrap"><table class="tbl tight min">
+<thead><tr><th scope="col"></th><th scope="col">Client maintains state</th><th scope="col">Server maintains state</th></tr></thead>
+<tbody>
+<tr><th scope="row">Who remembers</th><td>The browser (JS variables, cookies)</td><td>The server (sessions, database)</td></tr>
+<tr><th scope="row">What the client does</th><td>Sends requests for specific items</td><td>Only makes the requests the server allows</td></tr>
+<tr><th scope="row">Good for</th><td>Fast UI: no round trip for small changes</td><td>Control, security, one source of truth</td></tr>
+<tr><th scope="row">Watch out</th><td>The user can tamper with it</td><td>More server work, a request per step</td></tr>
+</tbody></table></div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><ul class="bullets"><li>HTTP is stateless</li><li>How to convey state between client and server?<ul><li>Client maintains state - sends requests to server for specific items</li><li>Server maintains state - only specific requests allowed to client</li></ul></li></ul></div></details>
+<div class="qc" data-ans="b"><p class="qc-q"><span class="qc-tag">Quick check</span>HTTP is stateless. What does that mean?</p><div class="qc-opts"><button type="button" data-k="a">The server keeps every user's state for you</button><button type="button" data-k="b">Each request is independent of the previous ones</button><button type="button" data-k="c">Clients can never keep state</button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden>The server does not remember earlier requests by itself. State has to be carried by the client or stored by the server.</div></div>
+</div></article>
+<article class="slide s-12" id="t-ttt">
+<header class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><h3><span class="ico" aria-hidden="true">⭕</span>Example: Tic-Tac-Toe</h3><span class="no" title="Topic 8">08</span></header>
+<div class="body">
+<p class="lead">Three design questions, answered with state.</p>
+<p class="why"><span class="why-tag">Why</span>One tiny game shows every idea of the week: state, render and input.</p>
+<div class="split"><ul class="bullets tight"><li><b>What to display on screen?</b> Draw the board from the state: nine cells (X, O or empty), whose turn it is, and the winner if there is one.</li><li><b>Who determines the display?</b> A render function of the state: <code>UI = f(state)</code>. Change the state and the screen follows.</li><li><b>How is user input collected and processed?</b> A click on a cell is an event. The handler checks the move, updates the state, then renders again.</li><li><b>Where does the state live?</b> One player on one page: all in the browser. Two players on two computers: the server holds the game state and each browser shows it.</li></ul><div class="stack-y"><figure class="code" data-lang="js"><figcaption><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>tictactoe.js</figcaption><pre><code><span class="k">const</span> state = { cells: <span class="f">Array</span>(<span class="n">9</span>).<span class="f">fill</span>(<span class="k">null</span>), turn: <span class="s">"X"</span> };
+
+<span class="k">function</span> <span class="f">play</span>(i) {
+  <span class="k">if</span> (state.cells[i]) <span class="k">return</span>;   <span class="c">// already taken: ignore</span>
+  state.cells[i] = state.turn;       <span class="c">// 1. update the state</span>
+  state.turn = state.turn === <span class="s">"X"</span> ? <span class="s">"O"</span> : <span class="s">"X"</span>;
+  <span class="f">render</span>();                          <span class="c">// 2. redraw from the state</span>
+}
+
+<span class="k">function</span> <span class="f">render</span>() {
+  <span class="c">// UI = f(state): draw nine cells from state.cells,</span>
+  <span class="c">// and show whose turn it is from state.turn</span>
+}</code></pre></figure></div></div>
+<div class="demo" data-lab="ttt">
+  <h4 class="demo-h">Try it: UI = f(state)</h4>
+  <div class="ttt-wrap">
+    <div class="ttt-board" role="group" aria-label="Tic-Tac-Toe board"></div>
+    <div class="ttt-side">
+      <pre class="lab-code ttt-state" aria-label="Current state"></pre>
+      <p class="demo-note" aria-live="polite"></p>
+      <button type="button" class="btn sm" data-do="reset">Reset</button>
+    </div>
+  </div>
+</div>
+<details class="simple slides"><summary>From the slides</summary><div class="slides-body"><ul class="bullets"><li>What to display on screen?</li><li>Who determines the display?</li><li>How should user input be collected and processed?</li></ul></div></details>
+<div class="qc" data-ans="c"><p class="qc-q"><span class="qc-tag">Quick check</span>In the game, what does a click on a free cell do?</p><div class="qc-opts"><button type="button" data-k="a">Draws an X straight onto the page</button><button type="button" data-k="b">Asks the server to draw it</button><button type="button" data-k="c">Updates the state, then the screen is redrawn from it</button></div><p class="qc-fb" aria-live="polite" hidden></p><div class="qc-why" hidden>Declarative flow: input changes the state, and the display is rebuilt from the state.</div></div>
+</div></article>
+</div></section>
+</main>
+
+<footer class="foot">
+  <p class="clear">Level complete</p>
+  <p><span class="score" id="score">Quick checks: 0 / 8 right</span></p>
+  <a class="btn go" href="#top">Back to top</a>
+  <a class="btn go" href="index.html">All weeks</a>
+</footer>
+
+<script>
+/* MAD-II notes: progress with percentage, sound, small demos, quick checks.
+   Plain JavaScript, no libraries. Everything degrades quietly if storage or audio is blocked. */
+(function () {
+  "use strict";
+
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function save(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function text(el, s) { if (el) el.textContent = s; }
+
+  /* ---------------------------------------------------------------
+     1. Sound: three tiny 8-bit blips. Off with the speaker button.
+     --------------------------------------------------------------- */
+  var Sound = (function () {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    var ctx = null, master = null, on = load("mad2-sound") !== "off";
+
+    function ensure() {
+      if (!AC) return false;
+      try {
+        if (!ctx) {
+          ctx = new AC();
+          master = ctx.createGain();
+          master.gain.value = 0.22;
+          master.connect(ctx.destination);
+        }
+        if (ctx.state === "suspended" && ctx.resume) ctx.resume();
+        return true;
+      } catch (e) { return false; }
+    }
+    function blip(freq, t, dur, vol) {
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "square";
+      o.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(master);
+      o.start(t); o.stop(t + dur + 0.02);
+    }
+    var fx = {
+      tick: function (t) { blip(740, t, 0.05, 0.4); },
+      ok:   function (t) { blip(660, t, 0.08, 0.45); blip(990, t + 0.08, 0.13, 0.45); },
+      bad:  function (t) { blip(220, t, 0.12, 0.45); blip(150, t + 0.11, 0.2, 0.45); }
+    };
+    return {
+      play: function (name) { if (on && fx[name] && ensure()) fx[name](ctx.currentTime + 0.01); },
+      isOn: function () { return on; },
+      set: function (v) { on = !!v; save("mad2-sound", on ? "on" : "off"); }
+    };
+  })();
+
+  var sndBtn = $("#snd");
+  function syncSnd() {
+    if (!sndBtn) return;
+    var on = Sound.isOn();
+    sndBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    sndBtn.setAttribute("aria-label", on ? "Sound effects on. Press to mute" : "Sound effects muted. Press to turn on");
+    text($(".tt-label", sndBtn), on ? "Sound" : "Muted");
+  }
+  if (sndBtn) {
+    sndBtn.addEventListener("click", function () {
+      Sound.set(!Sound.isOn());
+      syncSnd();
+      Sound.play("tick");      // plays only when turning sound on
+    });
+    syncSnd();
+  }
+
+  /* ---------------------------------------------------------------
+     2. Reading progress with a percentage (follows the scroll)
+     --------------------------------------------------------------- */
+  (function () {
+    var track = $(".pbar"), fill = $(".pbar i"), pct = $("#pct");
+    if (!track || !fill) return;
+    var shown = -1, queued = false;
+    function update() {
+      queued = false;
+      var max = document.documentElement.scrollHeight - window.innerHeight;
+      var p = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
+      var whole = Math.round(p * 100);
+      track.style.setProperty("--p", (p * 100).toFixed(2));
+      track.classList.toggle("zero", p < 0.005);
+      if (whole !== shown) {
+        shown = whole;
+        text(pct, whole + "%");
+        track.setAttribute("aria-valuenow", String(whole));
+      }
+    }
+    function queue() { if (!queued) { queued = true; requestAnimationFrame(update); } }
+    window.addEventListener("scroll", queue, { passive: true });
+    window.addEventListener("resize", queue);
+    update();
+  })();
+
+  /* ---------------------------------------------------------------
+     3. Step-through demos: call stack and event loop
+        Each step lists exactly what is on screen at that moment.
+     --------------------------------------------------------------- */
+  var SIMS = {
+    stack: [
+      { line: 0, stack: ["main()"],                      note: "The program starts. main() sits at the bottom of the stack." },
+      { line: 4, stack: ["main()", "f()"],               note: "main calls f(). f goes on top of the stack." },
+      { line: 3, stack: ["main()", "f()", "g()"],        note: "f calls g(). g goes on top." },
+      { line: 2, stack: ["main()", "f()", "g()", "h()"], note: "g calls h(). h goes on top." },
+      { line: 1, stack: ["main()", "f()", "g()", "h()"], note: "h is on top, so h runs. Only the top function runs." },
+      { line: 2, stack: ["main()", "f()", "g()"],        note: "h returns. Pop h. Control goes back into g." },
+      { line: 3, stack: ["main()", "f()"],               note: "g returns. Pop g. Control goes back into f." },
+      { line: 4, stack: ["main()"],                      note: "f returns. Pop f. Control goes back into main." },
+      { line: 0, stack: ["main()"],                      note: "Done. Last in, first out: h left first, then g, then f." }
+    ],
+    loop: [
+      { line: 0, stack: ["main()"],              queue: [],           out: [],                note: "The script starts. main() is on the stack." },
+      { line: 1, stack: ["main()"],              queue: [],           out: ["A"],             note: "console.log(\"A\") runs straight away. A is printed." },
+      { line: 2, stack: ["main()"],              queue: ["timer callback"], out: ["A"],        note: "setTimeout gives the timer to the browser. After 0 ms its callback joins the task queue. It does not run yet." },
+      { line: 3, stack: ["main()"],              queue: ["timer callback"], out: ["A", "C"],   note: "main keeps going: C is printed. The callback must wait." },
+      { line: 0, stack: [],                      queue: ["timer callback"], out: ["A", "C"],   note: "main has finished. The call stack is empty." },
+      { line: 0, stack: ["timer callback"],      queue: [],           out: ["A", "C"],        note: "The event loop sees an empty stack, so it moves the next task from the queue onto the stack." },
+      { line: 2, stack: ["timer callback"],      queue: [],           out: ["A", "C", "B"],   note: "The callback runs to completion: B is printed." },
+      { line: 0, stack: [],                      queue: [],           out: ["A", "C", "B"],   note: "Stack and queue are empty. Order: A, C, B. A 0 ms timer still runs after the current code." }
+    ]
+  };
+
+  function block(label, cls) {
+    var d = document.createElement("div");
+    d.className = "blk" + (cls ? " " + cls : "");
+    d.textContent = label;
+    return d;
+  }
+
+  function simDemo(root) {
+    var steps = SIMS[root.getAttribute("data-sim")];
+    if (!steps) return;
+    var i = 0;
+    var lines = $$(".ln", root), stackEl = $(".well.stack", root), queueEl = $(".well.queue", root), outEl = $(".well.out", root);
+    var note = $(".demo-note", root), count = $(".sim-count", root);
+    var next = $('[data-do="next"]', root), reset = $('[data-do="reset"]', root);
+
+    function fill(el, items, topClass) {
+      if (!el) return;
+      el.textContent = "";
+      items.forEach(function (label, n) {
+        el.appendChild(block(label, topClass && n === items.length - 1 ? "top" : ""));
+      });
+    }
+    function render() {
+      var s = steps[i];
+      lines.forEach(function (l) { l.classList.toggle("on", Number(l.getAttribute("data-l")) === s.line); });
+      fill(stackEl, s.stack, true);
+      fill(queueEl, s.queue || [], false);
+      fill(outEl, s.out || [], false);
+      text(note, s.note);
+      text(count, "Step " + (i + 1) + " / " + steps.length);
+      var last = i === steps.length - 1;
+      next.disabled = last;
+      text(next, last ? "Done" : "Step");
+    }
+    next.addEventListener("click", function () {
+      if (i < steps.length - 1) { i++; render(); Sound.play("tick"); }
+    });
+    reset.addEventListener("click", function () { i = 0; render(); Sound.play("tick"); });
+    render();
+  }
+  $$("[data-sim]").forEach(simDemo);
+
+  /* ---------------------------------------------------------------
+     4. map / filter / find chain builder
+     --------------------------------------------------------------- */
+  function chainLab(root) {
+    var start = [1, 2, 3, 4, 5, 6];
+    var OPS = {
+      filter: { code: ".filter(x => x % 2 === 0)", run: function (a) { return a.filter(function (x) { return x % 2 === 0; }); },
+                note: "filter keeps only the items where the callback is true." },
+      map:    { code: ".map(x => x * 10)", run: function (a) { return a.map(function (x) { return x * 10; }); },
+                note: "map changes every item. Same length as before." },
+      find:   { code: ".find(x => x > 30)", run: function (a) { return a.find(function (x) { return x > 30; }); }, last: true,
+                note: "find returns the first match (or undefined), not an array, so the chain ends here." }
+    };
+    var chosen = [];
+    var codeEl = $(".lab-code", root), resEl = $(".lab-res", root), note = $(".demo-note", root);
+    var btns = $$("[data-op]", root);
+
+    function fmt(v) { return Array.isArray(v) ? "[" + v.join(", ") + "]" : String(v); }
+    function render() {
+      var val = start.slice(), code = "nums";
+      chosen.forEach(function (k) { val = OPS[k].run(val); code += "\n  " + OPS[k].code; });
+      text(codeEl, code + ";");
+      text(resEl, fmt(val));
+      var ended = chosen.indexOf("find") > -1;
+      btns.forEach(function (b) {
+        var k = b.getAttribute("data-op");
+        if (k === "reset") return;
+        b.disabled = chosen.indexOf(k) > -1 || ended;
+      });
+      text(note, chosen.length ? OPS[chosen[chosen.length - 1]].note
+        : "Click a step to add it to the chain. Try filter then map, then map then filter.");
+    }
+    root.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest("[data-op]") : null;
+      if (!b || b.disabled) return;
+      var k = b.getAttribute("data-op");
+      if (k === "reset") chosen = []; else chosen.push(k);
+      Sound.play("tick");
+      render();
+    });
+    render();
+  }
+  $$('[data-lab="chain"]').forEach(chainLab);
+
+  /* ---------------------------------------------------------------
+     5. JSON checker
+     --------------------------------------------------------------- */
+  function jsonLab(root) {
+    var PRESETS = {
+      ok: '{\n  "name": "Sam",\n  "age": 20,\n  "marks": [90, 85],\n  "active": true\n}',
+      trail: '{\n  "name": "Sam",\n  "age": 20,\n}',
+      single: "{'name': 'Sam'}",
+      bare: '{name: "Sam"}',
+      comment: '{\n  "name": "Sam" // student\n}'
+    };
+    var input = $(".jl-in", root), out = $(".jl-out", root);
+    input.value = PRESETS.ok;
+
+    function check() {
+      var ok, pre = null, msg;
+      try {
+        var v = JSON.parse(input.value);
+        ok = true;
+        msg = "Valid JSON. JSON.parse gives:";
+        pre = JSON.stringify(v, null, 2);
+      } catch (err) {
+        ok = false;
+        msg = "SyntaxError: " + err.message;
+      }
+      out.hidden = false;
+      out.className = "jl-out " + (ok ? "ok" : "bad");
+      out.textContent = (ok ? "✓ " : "✗ ") + msg;
+      if (pre !== null) {
+        var p = document.createElement("pre");
+        p.textContent = pre;
+        out.appendChild(p);
+      }
+      Sound.play(ok ? "ok" : "bad");
+    }
+    root.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest("button") : null;
+      if (!b) return;
+      var preset = b.getAttribute("data-preset");
+      if (preset && PRESETS[preset]) { input.value = PRESETS[preset]; check(); }
+      else if (b.getAttribute("data-do") === "parse") check();
+    });
+    input.addEventListener("input", function () { out.hidden = true; });
+  }
+  $$('[data-lab="json"]').forEach(jsonLab);
+
+  /* ---------------------------------------------------------------
+     5b. "Pick one": each button shows a snippet, its result and why.
+         Used for typeof, coercion, scope, const and semicolon demos.
+     --------------------------------------------------------------- */
+  function pickLab(root) {
+    var btns = $$("button[data-code]", root);
+    var codeEl = $(".lab-code", root), resEl = $(".lab-res", root), note = $(".demo-note", root);
+    var intro = note ? note.textContent : "";
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", "false");
+      b.addEventListener("click", function () {
+        btns.forEach(function (o) { o.classList.remove("sel"); o.setAttribute("aria-pressed", "false"); });
+        b.classList.add("sel"); b.setAttribute("aria-pressed", "true");
+        var kind = b.getAttribute("data-kind"), bad = kind === "bad";
+        text(codeEl, b.getAttribute("data-code"));
+        text(resEl, b.getAttribute("data-res"));
+        resEl.className = "lab-res" + (bad ? " err" : kind === "warn" ? " warn" : "");
+        text(note, b.getAttribute("data-why") || intro);
+        Sound.play(bad ? "bad" : "tick");
+      });
+    });
+  }
+  $$('[data-lab="pick"]').forEach(pickLab);
+
+  /* ---------------------------------------------------------------
+     5c. Can I use this word as a name?
+     --------------------------------------------------------------- */
+  function identLab(root) {
+    var RESERVED = ("await break case catch class const continue debugger default delete do else export extends " +
+      "finally for function if import in instanceof let new return static super switch this throw try typeof var void while with yield").split(" ");
+    var LITERAL = ["true", "false", "null"];
+    var AVOID = ("enum implements package protected interface private public Infinity NaN undefined async").split(" ");
+    var input = $("input", root), out = $(".id-out", root);
+    function show(kind, msg) { out.className = "jl-out id-out " + kind; text(out, msg); }
+    function check() {
+      var w = input.value.trim();
+      if (!w) { out.className = "jl-out id-out"; text(out, "Type a name to test it."); return; }
+      if (RESERVED.indexOf(w) > -1) { show("bad", "✗ Reserved word: it already has a meaning, so it cannot be a name."); Sound.play("bad"); return; }
+      if (LITERAL.indexOf(w) > -1)  { show("bad", "✗ Literal (a fixed value): it cannot be a name."); Sound.play("bad"); return; }
+      if (AVOID.indexOf(w) > -1)    { show("warn", "! Risky: kept for the future or has a special meaning. Avoid it."); Sound.play("tick"); return; }
+      var re; try { re = new RegExp("^[\\p{L}_$][\\p{L}\\p{N}_$]*$", "u"); } catch (e) { re = /^[A-Za-z_$][\w$]*$/; }
+      if (!re.test(w)) { show("bad", "✗ A name uses letters, digits, _ or $, and cannot start with a digit."); Sound.play("bad"); return; }
+      if (/[^\x00-\x7f]/.test(w)) { show("warn", "! Legal, but avoid non-English names so the code stays readable."); Sound.play("tick"); return; }
+      show("ok", "✓ Free name. You can use it."); Sound.play("ok");
+    }
+    $(".btn", root).addEventListener("click", check);
+    input.addEventListener("keydown", function (e) { if (e.key === "Enter") check(); });
+    $$("[data-try]", root).forEach(function (b) {
+      b.addEventListener("click", function () { input.value = b.getAttribute("data-try"); check(); });
+    });
+  }
+  $$('[data-lab="ident"]').forEach(identLab);
+
+  /* ---------------------------------------------------------------
+     5d. Live DOM demo: the same code as on the card, really running
+     --------------------------------------------------------------- */
+  function domLab(root) {
+    var input = $("input", root), out = $(".dom-out", root), go = $(".btn", root);
+    function run() {
+      out.textContent = "Hello, " + input.value + "!";   // output
+      out.style.color = "tomato";
+      Sound.play("ok");
+    }
+    go.addEventListener("click", run);
+    input.addEventListener("keydown", function (e) { if (e.key === "Enter") run(); });
+  }
+  $$('[data-lab="dom"]').forEach(domLab);
+
+  /* ---------------------------------------------------------------
+     5e. Tic-Tac-Toe: the board is always drawn from the state
+     --------------------------------------------------------------- */
+  function tttLab(root) {
+    var board = $(".ttt-board", root), view = $(".ttt-state", root), note = $(".demo-note", root);
+    var LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    var state;
+    function fresh() { state = { cells: [null,null,null,null,null,null,null,null,null], turn: "X", winner: null }; }
+    function winner() {
+      for (var i = 0; i < LINES.length; i++) {
+        var l = LINES[i], c = state.cells;
+        if (c[l[0]] && c[l[0]] === c[l[1]] && c[l[0]] === c[l[2]]) return { who: c[l[0]], line: l };
+      }
+      return null;
+    }
+    function cellText(v) { return v === null ? "null" : '"' + v + '"'; }
+    function render(focusIdx) {                       // UI = f(state)
+      var w = winner(), full = state.cells.every(function (v) { return v; });
+      state.winner = w ? w.who : null;
+      board.textContent = "";
+      state.cells.forEach(function (v, i) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "ttt-cell" + (v ? " " + v.toLowerCase() : "") + (w && w.line.indexOf(i) > -1 ? " win" : "");
+        b.textContent = v || "";
+        b.setAttribute("data-i", i);
+        b.setAttribute("aria-label", "Cell " + (i + 1) + ", " + (v ? v : "empty"));
+        board.appendChild(b);
+      });
+      var c = state.cells.map(cellText);
+      view.textContent = "cells: [" + c.slice(0, 3).join(", ") + ",\n        " + c.slice(3, 6).join(", ") + ",\n        " +
+        c.slice(6).join(", ") + "]\nturn: \"" + state.turn + "\"\nwinner: " + (state.winner ? '"' + state.winner + '"' : "null");
+      text(note, w ? w.who + " wins. The screen was redrawn from the state." : full ? "A draw. Reset to play again." :
+        "Turn: " + state.turn + ". Click a cell: the state changes first, then the screen is rebuilt from it.");
+      if (typeof focusIdx === "number") { var f = board.children[focusIdx]; if (f) f.focus(); }
+    }
+    board.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest(".ttt-cell") : null;
+      if (!b) return;
+      var i = Number(b.getAttribute("data-i"));
+      if (state.cells[i] || winner()) { Sound.play("bad"); return; }
+      state.cells[i] = state.turn;                     // 1. update the state
+      state.turn = state.turn === "X" ? "O" : "X";
+      render(i);                                       // 2. redraw from the state
+      Sound.play(winner() ? "ok" : "tick");
+    });
+    $('[data-do="reset"]', root).addEventListener("click", function () { fresh(); render(); Sound.play("tick"); });
+    fresh(); render();
+  }
+  $$('[data-lab="ttt"]').forEach(tttLab);
+
+  /* ---------------------------------------------------------------
+     5f. Vue-style demos (plain JS): bindings, class binding, v-if / v-show,
+         keys, computed caching, and getter/setter reactivity.
+     --------------------------------------------------------------- */
+  function mk(tag, cls, txt) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (txt) e.textContent = txt;
+    return e;
+  }
+
+  // v-bind (one way) next to v-model (two way)
+  function bindLab(root) {
+    var note = $(".demo-note", root);
+    $$("[data-mode]", root).forEach(function (col) {
+      var two = col.getAttribute("data-mode") === "two";
+      var input = $("input", col), out = $(".b-out", col), name = "Asha";
+      function show() { text(out, name); }
+      input.value = name; show();
+      input.addEventListener("input", function () {
+        if (two) { name = input.value; show(); text(note, "v-model is two-way: typing changed the variable, so the text followed."); }
+        else { text(note, "v-bind is one-way: you typed, but the variable is still “" + name + "”. Data flows variable to input only."); }
+      });
+      $(".btn", col).addEventListener("click", function () {
+        name = "Ravi"; input.value = name; show(); Sound.play("tick");
+        text(note, "Code set name = \"Ravi\". Both inputs updated: the variable always pushes to the input.");
+      });
+    });
+  }
+  $$('[data-lab="bind"]').forEach(bindLab);
+
+  // :class="{ active: isActive, 'text-danger': hasError }"
+  function classLab(root) {
+    var box = $(".cb-box", root), out = $(".cb-out", root), chks = $$("input[type=checkbox]", root);
+    function render() {
+      var applied = [], parts = [];
+      chks.forEach(function (c) {
+        var k = c.getAttribute("data-k"), on = c.checked;
+        if (on) applied.push(k);
+        parts.push((/-/.test(k) ? "'" + k + "'" : k) + ": " + on);
+      });
+      box.className = "cb-box" + (applied.length ? " " + applied.join(" ") : "");
+      text(out, ':class="{ ' + parts.join(", ") + ' }"\nrenders  class="box' + (applied.length ? " " + applied.join(" ") : "") + '"');
+    }
+    chks.forEach(function (c) { c.addEventListener("change", function () { Sound.play("tick"); render(); }); });
+    render();
+  }
+  $$('[data-lab="classbind"]').forEach(classLab);
+
+  // v-if adds and removes the element, v-show only flips display
+  function ifShowLab(root) {
+    var chk = $("input", root), host = $(".is-host", root), shown = $(".is-show", root);
+    var rIf = $(".r-if", root), rShow = $(".r-show", root);
+    var node = mk("div", "is-box", "v-if box");
+    function render() {
+      var on = chk.checked;
+      if (on && !host.contains(node)) host.appendChild(node);
+      if (!on && host.contains(node)) host.removeChild(node);
+      shown.style.display = on ? "" : "none";
+      text(rIf, "In the DOM: " + (host.contains(node) ? "yes" : "no, removed"));
+      text(rShow, "In the DOM: yes. display: " + (on ? "block" : "none"));
+    }
+    chk.addEventListener("change", function () { Sound.play("tick"); render(); });
+    render();
+  }
+  $$('[data-lab="ifshow"]').forEach(ifShowLab);
+
+  // keys: rows reused by position (no key) or by id (key)
+  function keysLab(root) {
+    var list = $(".k-list", root), note = $(".demo-note", root), add = $('[data-do="insert"]', root);
+    var modeBtns = $$("[data-mode]", root);
+    var mode = "key", items, nextId, byId, byPos;
+    function row() {
+      var li = mk("li", "k-row");
+      li.appendChild(mk("span", "k-label"));
+      var inp = mk("input", "dom-in"); inp.type = "text"; inp.setAttribute("aria-label", "Type something here");
+      li.appendChild(inp);
+      return li;
+    }
+    function patch() {
+      var wanted = items.map(function (it, i) {
+        var li = mode === "key" ? (byId[it.id] || (byId[it.id] = row())) : (byPos[i] || (byPos[i] = row()));
+        text($(".k-label", li), it.name);
+        return li;
+      });
+      wanted.forEach(function (li, i) { if (list.children[i] !== li) list.insertBefore(li, list.children[i] || null); });
+      while (list.children.length > wanted.length) list.removeChild(list.lastChild);
+      add.disabled = items.length >= 6;
+    }
+    function reset(msg) {
+      items = [{ id: 1, name: "Apple" }, { id: 2, name: "Banana" }, { id: 3, name: "Cherry" }];
+      nextId = 4; byId = {}; byPos = []; list.textContent = "";
+      patch();
+      text(note, msg || "Type something in the Apple box, then press Insert at top.");
+    }
+    modeBtns.forEach(function (b) {
+      b.addEventListener("click", function () {
+        mode = b.getAttribute("data-mode");
+        modeBtns.forEach(function (o) { o.classList.toggle("sel", o === b); o.setAttribute("aria-pressed", o === b ? "true" : "false"); });
+        Sound.play("tick");
+        reset(mode === "key" ? "With :key=\"item.id\". Type in the Apple box, then Insert at top." : "No key (rows matched by position). Type in the Apple box, then Insert at top.");
+      });
+    });
+    add.addEventListener("click", function () {
+      items.unshift({ id: nextId, name: "New " + (nextId - 3) });
+      nextId++;
+      patch();
+      Sound.play("tick");
+      text(note, mode === "key"
+        ? "Keyed: each row moved with its item, typed text included."
+        : "No key: Vue reused rows by position. Your typed text stayed in the same spot while the labels shifted, so it now sits beside the wrong item.");
+    });
+    $('[data-do="reset"]', root).addEventListener("click", function () { reset(); Sound.play("tick"); });
+    modeBtns.forEach(function (o) { o.setAttribute("aria-pressed", o.getAttribute("data-mode") === mode ? "true" : "false"); o.classList.toggle("sel", o.getAttribute("data-mode") === mode); });
+    reset();
+  }
+  $$('[data-lab="keys"]').forEach(keysLab);
+
+  // computed (cached) next to a method (runs on every render)
+  function computedLab(root) {
+    var s = { first: "Asha", last: "Rao", likes: 0 };
+    var cache = "", dirty = true, cRuns = 0, mRuns = 0;
+    var fIn = $('[data-f="first"]', root), lIn = $('[data-f="last"]', root);
+    var outC = $(".c-out", root), outM = $(".m-out", root), runsC = $(".c-runs", root), runsM = $(".m-runs", root), likes = $(".likes", root);
+    function computedFull() { if (dirty) { cRuns++; cache = s.first + " " + s.last; dirty = false; } return cache; }
+    function methodFull() { mRuns++; return s.first + " " + s.last; }
+    function render() {
+      text(outC, computedFull()); text(outM, methodFull());
+      text(runsC, String(cRuns)); text(runsM, String(mRuns)); text(likes, String(s.likes));
+    }
+    fIn.value = s.first; lIn.value = s.last;
+    fIn.addEventListener("input", function () { s.first = fIn.value; dirty = true; render(); });
+    lIn.addEventListener("input", function () { s.last = lIn.value; dirty = true; render(); });
+    $('[data-do="like"]', root).addEventListener("click", function () { s.likes++; render(); Sound.play("tick"); });
+    render();
+  }
+  $$('[data-lab="computed"]').forEach(computedLab);
+
+  // real getter/setter reactivity (the code on the card, running)
+  function reactiveLab(root) {
+    var logEl = $(".r-log", root), view = $(".r-view", root), lines = [];
+    var data = { count: 10 }, newData = {};
+    function log(t) { lines.push(t); if (lines.length > 8) lines.shift(); text(logEl, lines.join("\n")); }
+    function render() { text(view, "Count: " + data.count); }
+    Object.defineProperty(newData, "count", {
+      get: function () { log("Prop accessed"); return data.count; },
+      set: function (v) { data.count = v; log("Prop modified"); render(); }
+    });
+    var ACTIONS = {
+      read: function () { log("> console.log(newData.count)"); log(String(newData.count)); },
+      set20: function () { log("> newData.count = 20"); newData.count = 20; },
+      inc: function () { log("> newData.count = newData.count + 1"); newData.count = newData.count + 1; },
+      reset: function () { lines = []; data.count = 10; text(logEl, ""); render(); }
+    };
+    $$("[data-act]", root).forEach(function (b) {
+      b.addEventListener("click", function () { ACTIONS[b.getAttribute("data-act")](); Sound.play("tick"); });
+    });
+    render();
+  }
+  $$('[data-lab="reactive"]').forEach(reactiveLab);
+
+  /* ---------------------------------------------------------------
+     6. Quick checks (one question per topic) + score in the footer
+     --------------------------------------------------------------- */
+  (function () {
+    var boxes = $$(".qc"), scoreEl = $("#score");
+    var right = 0;
+    function showScore() { text(scoreEl, "Quick checks: " + right + " / " + boxes.length + " right"); }
+
+    boxes.forEach(function (qc) {
+      var correct = qc.getAttribute("data-ans");
+      var opts = $$(".qc-opts button", qc);
+      var fb = $(".qc-fb", qc), why = $(".qc-why", qc);
+      var counted = false;       // only the first try counts for the score
+
+      function lock(on) { opts.forEach(function (b) { b.disabled = on; }); }
+      function clear() {
+        opts.forEach(function (b) { b.classList.remove("ok", "no"); });
+        fb.hidden = true; fb.textContent = "";
+        lock(false);
+      }
+      function answer(btn) {
+        var k = btn.getAttribute("data-k"), good = k === correct;
+        lock(true);
+        btn.classList.add(good ? "ok" : "no");
+        if (!good) opts.forEach(function (b) { if (b.getAttribute("data-k") === correct) b.classList.add("ok"); });
+        fb.hidden = false;
+        fb.innerHTML = "<b>" + (good ? "Correct." : "Not quite.") + "</b> " + why.innerHTML;
+        if (!good) {
+          var r = document.createElement("button");
+          r.type = "button"; r.className = "retry"; r.textContent = "Try again";
+          r.addEventListener("click", function () { clear(); Sound.play("tick"); });
+          fb.appendChild(r);
+        }
+        if (!counted) { counted = true; if (good) right++; showScore(); }
+        Sound.play(good ? "ok" : "bad");
+      }
+      opts.forEach(function (b) { b.addEventListener("click", function () { answer(b); }); });
+    });
+    showScore();
+  })();
+})();
+
+</script>
+</body>
+</html>
